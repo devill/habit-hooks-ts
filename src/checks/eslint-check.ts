@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { ESLint, type Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
 import type { Check, Rule, Violation } from '../types.js';
@@ -18,7 +19,17 @@ let probeCache: Map<string, Promise<TsPluginProbe>> = new Map();
 function resolvePluginPath(cwd: string): string | null {
   try {
     const require = createRequire(`${cwd}/__noop.js`);
-    return require.resolve(TS_PLUGIN_NAME);
+    const resolved = require.resolve(TS_PLUGIN_NAME);
+    let current = path.resolve(cwd);
+    while (true) {
+      const nodeModules = path.join(current, 'node_modules');
+      if (resolved === nodeModules || resolved.startsWith(nodeModules + path.sep)) {
+        return resolved;
+      }
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      current = parent;
+    }
   } catch {
     return null;
   }
