@@ -30,7 +30,7 @@ interface Clone {
 
 function getOptions(rules: Rule[]): JscpdOptions {
   const rule = rules.find((r) => r.id === RULE_ID);
-  const opts = rule?.eslintOptions;
+  const opts = rule?.sourceOptions;
   if (!opts || typeof opts !== 'object' || Array.isArray(opts)) return {};
   return opts as JscpdOptions;
 }

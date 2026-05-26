@@ -106,7 +106,7 @@ const config: HabitHooksConfig = {
   prompts: './prompts',
   rules: {
     'eslint:max-lines-per-function': {
-      eslintOptions: [{ max: 20 }],
+      sourceOptions: [{ max: 20 }],
       exclude: ['**/*.test.ts', 'tests/**'],
     },
     'comment:non-essential': { disabled: true },

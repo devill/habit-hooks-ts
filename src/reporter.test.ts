@@ -10,7 +10,7 @@ const enforcedRule: Rule = {
   changedFilesOnly: false,
   title: 'Too many parameters',
   description: 'Functions should accept at most 3 parameters.',
-  eslintOptions: [3],
+  sourceOptions: [3],
 };
 
 const suggestedRule: Rule = {
@@ -21,7 +21,7 @@ const suggestedRule: Rule = {
   changedFilesOnly: false,
   title: 'Function complexity is high',
   description: 'Cyclomatic complexity should stay at or below 10.',
-  eslintOptions: [10],
+  sourceOptions: [10],
 };
 
 const rules: Rule[] = [enforcedRule, suggestedRule];

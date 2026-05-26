@@ -73,7 +73,7 @@ describe('commentCheck', () => {
     const file = write(dir, 'g.ts', '// @keep-this comment for tooling\nexport const g = 1;\n');
     const ruleWithOpts: Rule = {
       ...RULE,
-      eslintOptions: { executableAnnotations: ['@keep-this'] },
+      sourceOptions: { executableAnnotations: ['@keep-this'] },
     };
     const violations = await commentCheck.run([file], [ruleWithOpts]);
     expect(violations).toEqual([]);

@@ -15,7 +15,7 @@ interface CommentCheckOptions {
 function getOptions(rules: Rule[]): CommentCheckOptions {
   const rule = rules.find((r) => r.id === RULE_ID);
   if (!rule) return {};
-  const opts = rule.eslintOptions;
+  const opts = rule.sourceOptions;
   if (!opts || typeof opts !== 'object' || Array.isArray(opts)) return {};
   return opts as CommentCheckOptions;
 }

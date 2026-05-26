@@ -10,7 +10,7 @@ const tier1Rules: Rule[] = [
     changedFilesOnly: true,
     title: 'Oversized function',
     description: 'Functions over 12 lines tend to bundle multiple responsibilities.',
-    eslintOptions: [
+    sourceOptions: [
       { max: 12, skipBlankLines: false, skipComments: false, IIFEs: true },
     ],
   },
@@ -22,7 +22,7 @@ const tier1Rules: Rule[] = [
     changedFilesOnly: false,
     title: 'Too many parameters',
     description: 'Functions with many parameters violate single responsibility.',
-    eslintOptions: [{ max: 3 }],
+    sourceOptions: [{ max: 3 }],
   },
   {
     id: 'eslint:complexity',
@@ -32,7 +32,7 @@ const tier1Rules: Rule[] = [
     changedFilesOnly: true,
     title: 'High cyclomatic complexity',
     description: 'Complex functions are harder to understand, test, and maintain.',
-    eslintOptions: [{ max: 10 }],
+    sourceOptions: [{ max: 10 }],
   },
   {
     id: 'eslint:max-lines',
@@ -42,7 +42,7 @@ const tier1Rules: Rule[] = [
     changedFilesOnly: true,
     title: 'Oversized file',
     description: 'Files over 200 lines are extremely difficult to maintain.',
-    eslintOptions: [{ max: 200, skipBlankLines: false, skipComments: false }],
+    sourceOptions: [{ max: 200, skipBlankLines: false, skipComments: false }],
   },
 ];
 
@@ -55,7 +55,7 @@ const tier2Rules: Rule[] = [
     changedFilesOnly: false,
     title: 'Unused variable',
     description: 'Unused bindings are dead weight; remove them or rename with a leading underscore if intentional.',
-    eslintOptions: [{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    sourceOptions: [{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
   },
   {
     id: 'eslint:eqeqeq',
@@ -65,7 +65,7 @@ const tier2Rules: Rule[] = [
     changedFilesOnly: false,
     title: 'Loose equality',
     description: 'Use === / !== to avoid silent coercion bugs.',
-    eslintOptions: ['always'],
+    sourceOptions: ['always'],
   },
   {
     id: 'eslint:no-var',
@@ -102,7 +102,7 @@ const tier2Rules: Rule[] = [
     changedFilesOnly: false,
     title: 'Warning comment',
     description: 'TODO / FIXME / XXX / HACK markers are unfinished work in the codebase.',
-    eslintOptions: [{ terms: ['todo', 'fixme', 'xxx', 'hack'], location: 'anywhere' }],
+    sourceOptions: [{ terms: ['todo', 'fixme', 'xxx', 'hack'], location: 'anywhere' }],
   },
 ];
 
@@ -155,7 +155,7 @@ const jscpdRules: Rule[] = [
     changedFilesOnly: true,
     title: 'Duplicated code',
     description: 'Repeated blocks usually want a shared abstraction, not a copy-paste.',
-    eslintOptions: { minTokens: 50, minLines: 5 },
+    sourceOptions: { minTokens: 50, minLines: 5 },
   },
 ];
 

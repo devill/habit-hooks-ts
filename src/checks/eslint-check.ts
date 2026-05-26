@@ -64,7 +64,7 @@ function buildRuleConfig(rules: Rule[]): Linter.RulesRecord {
   const config: Linter.RulesRecord = {};
   for (const rule of rules) {
     if (rule.source !== 'eslint' || !rule.sourceRuleId) continue;
-    const options = Array.isArray(rule.eslintOptions) ? rule.eslintOptions : [];
+    const options = Array.isArray(rule.sourceOptions) ? rule.sourceOptions : [];
     config[rule.sourceRuleId] = ['error', ...options];
   }
   return config;

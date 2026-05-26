@@ -11,7 +11,7 @@ const base: Rule[] = [
     changedFilesOnly: false,
     title: 'Too many parameters',
     description: 'desc',
-    eslintOptions: [3],
+    sourceOptions: [3],
   },
   {
     id: 'eslint:complexity',
@@ -21,7 +21,7 @@ const base: Rule[] = [
     changedFilesOnly: false,
     title: 'Complex',
     description: 'desc',
-    eslintOptions: [10],
+    sourceOptions: [10],
   },
 ];
 
@@ -39,12 +39,12 @@ describe('mergeRules', () => {
     expect(target?.severity).toBe('suggested');
   });
 
-  it('overrides eslintOptions', () => {
+  it('overrides sourceOptions', () => {
     const result = mergeRules(base, {
-      'eslint:max-params': { eslintOptions: [5] },
+      'eslint:max-params': { sourceOptions: [5] },
     });
     const target = result.find((r) => r.id === 'eslint:max-params');
-    expect(target?.eslintOptions).toEqual([5]);
+    expect(target?.sourceOptions).toEqual([5]);
   });
 
   it('removes a disabled rule', () => {

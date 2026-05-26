@@ -12,7 +12,7 @@ const RULE: Rule = {
   changedFilesOnly: false,
   title: 'Duplicated code',
   description: '',
-  eslintOptions: { minTokens: 20, minLines: 2 },
+  sourceOptions: { minTokens: 20, minLines: 2 },
 };
 
 const DUPLICATE = `export function processOrder(order: { id: number; total: number }): number {
