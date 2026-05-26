@@ -38,10 +38,10 @@ npm install --save-dev habit-hooks
 npx habit-hooks
 ```
 
-That runs every default check against files changed since the branch base. To scaffold a config file, a baseline, and a `package.json` script, an `init` command is coming in phase 7:
+That runs every default check against files changed since the branch base. To scaffold a config file, a baseline, and `package.json` scripts (with optional pre-commit hook and reviewer-skill install):
 
 ```sh
-npx habit-hooks init   # phase 7 — coming soon
+npx habit-hooks init
 ```
 
 ## What it catches
@@ -188,7 +188,7 @@ That closing message is the cue for the `habit-hooks-review` skill — see `src/
 
 ## Status
 
-v1 in development. Phases 1–6 of 7 are complete: bootstrap, ESLint-backed rules, config, git-aware scope, baseline, and the built-in default rule set. Phase 7 (jscpd duplication checks, knip unused-class-member checks, and the `habit-hooks init` scaffolder) and the first npm publish are tracked in issues on the GitHub repo.
+v1 complete. All seven implementation phases have landed: bootstrap, ESLint-backed rules, config, git-aware scope, baseline, the built-in default rule set, and jscpd/knip checks + `init` scaffolder. The first npm publish and future-work items are tracked in issues on the GitHub repo.
 
 ## Contributing
 
