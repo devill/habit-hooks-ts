@@ -5,3 +5,5 @@ Before grouping parameters into a bag-of-fields object, ask: (1) Should this met
 Favour a declarative style over many locals — once data clusters into objects, control flow usually simplifies too.
 
 A literal `{ ...everything }` object that just renames the parameter list does not address the smell; it hides it.
+
+A concrete technique: write the calling sites you wish existed (one line each). Make them real — the parameter shape usually falls out of the call sites you want.

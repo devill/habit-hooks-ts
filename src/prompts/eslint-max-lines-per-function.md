@@ -4,4 +4,6 @@ Analyse responsibilities first: what distinct concerns does this function handle
 
 Avoid mechanical extraction. Pulling out a `helperA` / `helperB` purely to satisfy the threshold often hides the smell behind worse names and leaves the real shape untouched. Find true responsibility boundaries.
 
-If the code has many misplaced responsibilities you may need to first *inline* methods to see the whole picture and find a better way of redistributing functionality. Think of this when reducing line count seems particularly hard — taking a step backwards may open up new, better possibilities.
+If responsibilities are tangled you may need to first *inline* methods to see the whole picture before redistributing. Think of this when reducing line count seems particularly hard — stepping backwards often opens up better possibilities.
+
+A concrete technique: write what the method does in one short sentence. Refactor until the code reads as close to that sentence as possible. If you cannot say what it does in one sentence, it almost certainly has more than one responsibility.

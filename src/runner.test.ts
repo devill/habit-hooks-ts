@@ -31,7 +31,7 @@ describe('runner.run', () => {
   it('returns exit 0 and clean header for a clean project', async () => {
     const result = await run(join(fixturesDir, 'clean-project'));
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Habit Hooks: clean');
+    expect(result.stdout).toContain('Habit Hooks: automated checks passed.');
   });
 
   it('respects per-rule exclude: test files do not trip max-lines-per-function', async () => {
@@ -103,7 +103,7 @@ describe('runner.run with scope', () => {
     const result = await run(repo.cwd, { scopeFlags: { last: 1 } });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Habit Hooks: clean');
+    expect(result.stdout).toContain('Habit Hooks: automated checks passed.');
   });
 
   it('--all overrides config.onlyChangedFiles and lints the full set', async () => {
@@ -153,7 +153,7 @@ describe('runner.run with baseline', () => {
     const result = await run(repo.cwd);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Habit Hooks: clean');
+    expect(result.stdout).toContain('Habit Hooks: automated checks passed.');
     expect(result.stdout).not.toContain('bad.ts');
   });
 

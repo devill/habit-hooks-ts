@@ -46,7 +46,7 @@ function renderGroup(rule: Rule, violations: Violation[]): string {
 
 function renderHeader(total: number): string {
   if (total === 0) {
-    return '✅ Habit Hooks: clean';
+    return '✅ Habit Hooks: automated checks passed.\n\nHabit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.';
   }
   const noun = total === 1 ? 'violation' : 'violations';
   return `❌ Habit Hooks: ${total} ${noun}`;

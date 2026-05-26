@@ -39,7 +39,9 @@ describe('report', () => {
   it('returns exit 0 and clean header when no violations', () => {
     const result = report([], rules);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Habit Hooks: clean');
+    expect(result.stdout).toContain('Habit Hooks: automated checks passed.');
+    expect(result.stdout).toContain('Habit Hooks catches structural smells');
+    expect(result.stdout).toContain('reviewer sub-agent');
     expect(result.stdout).not.toContain('Violations:');
   });
 
