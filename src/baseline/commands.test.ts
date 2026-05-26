@@ -34,7 +34,7 @@ describe('baseline generate', () => {
   });
 
   it('populates entries for currently-violating files', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd);
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.writeFile('clean.ts', CLEAN_FN);
@@ -49,7 +49,7 @@ describe('baseline generate', () => {
   });
 
   it('is deterministic: running twice produces a byte-identical file', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd);
     repo.writeFile('a-bad.ts', DIRTY_FN);
     repo.writeFile('z-bad.ts', DIRTY_FN);
@@ -65,7 +65,7 @@ describe('baseline generate', () => {
   });
 
   it('uses --all semantics: captures violations regardless of scope config', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     const cfg = {
       scope: { onlyChangedFiles: true },
       rules: {
@@ -84,7 +84,7 @@ describe('baseline generate', () => {
   });
 
   it('records every violating file even past the reporter per-rule cap', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd);
     const expected: string[] = [];
     for (let i = 0; i < 12; i += 1) {
@@ -101,7 +101,7 @@ describe('baseline generate', () => {
   });
 
   it('preserves entries for files that have no violations (no auto-cleanup)', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd);
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.commitAll('initial');
@@ -207,7 +207,7 @@ describe('baseline prune', () => {
   });
 
   it('removes entries for files that no longer exist and entries with no violations', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd);
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.writeFile('clean.ts', CLEAN_FN);
@@ -280,7 +280,7 @@ describe('baseline file lifecycle', () => {
   });
 
   it('generate then snooze then forget removes all entries', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd);
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.writeFile('clean.ts', CLEAN_FN);

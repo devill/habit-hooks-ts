@@ -1,7 +1,7 @@
 import { dirname, relative } from 'node:path';
 import fg from 'fast-glob';
 import picomatch from 'picomatch';
-import { eslintCheck } from './checks/eslint-check.js';
+import { eslintWrap } from './checks/eslint-wrap.js';
 import { commentCheck } from './checks/comment-check.js';
 import { jscpdCheck } from './checks/jscpd-check.js';
 import { knipCheck } from './checks/knip-check.js';
@@ -12,7 +12,7 @@ import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
 import type { HabitHooksConfig } from './config/schema.js';
-import type { Check, Rule, Violation } from './types.js';
+import type { Check, CheckOutcome, Rule, Violation } from './types.js';
 
 export interface RunResult {
   stdout: string;
@@ -107,24 +107,63 @@ interface SourceCheck {
   check: Check;
 }
 
-async function runGroups(
-  groups: FileSetGroup[],
-  ctx: RunContext,
-  check: Check,
-): Promise<Violation[]> {
+function normalizeOutcome(result: Violation[] | CheckOutcome): CheckOutcome {
+  if (Array.isArray(result)) return { violations: result };
+  return result;
+}
+
+async function runGroup(check: Check, group: FileSetGroup, ctx: RunContext): Promise<CheckOutcome> {
+  const raw = await check.run(group.files, group.rules, ctx.cwd);
+  return normalizeOutcome(raw);
+}
+
+async function runGroups(groups: FileSetGroup[], ctx: RunContext, check: Check): Promise<CheckOutcome> {
+  const stderr: string[] = [];
   const violations: Violation[] = [];
   for (const group of groups) {
     if (group.files.length === 0) continue;
-    violations.push(...(await check.run(group.files, group.rules, ctx.cwd)));
+    const outcome = await runGroup(check, group, ctx);
+    violations.push(...outcome.violations);
+    if (outcome.stderr) stderr.push(...outcome.stderr);
   }
-  return violations;
+  return { violations, stderr };
+}
+
+function unionFiles(rules: Rule[], ctx: RunContext): string[] {
+  const seen = new Set<string>();
+  for (const rule of rules) {
+    for (const file of resolveFilesForRule(rule, ctx)) seen.add(file);
+  }
+  return [...seen];
+}
+
+function ruleAllowsViolation(rule: Rule, file: string, ctx: RunContext): boolean {
+  return resolveFilesForRule(rule, ctx).includes(file);
+}
+
+function filterEslintViolations(violations: Violation[], rules: Rule[], ctx: RunContext): Violation[] {
+  const byId = new Map(rules.map((r) => [r.id, r] as const));
+  return violations.filter((v) => {
+    const rule = byId.get(v.ruleId);
+    if (rule === undefined) return true;
+    return ruleAllowsViolation(rule, v.file, ctx);
+  });
+}
+
+async function runEslintSource(rules: Rule[], ctx: RunContext, check: Check): Promise<CheckOutcome> {
+  const selected = rules.filter((rule) => rule.source === 'eslint');
+  const files = unionFiles(selected, ctx);
+  if (files.length === 0) return { violations: [], stderr: [] };
+  const outcome = normalizeOutcome(await check.run(files, selected, ctx.cwd));
+  return { violations: filterEslintViolations(outcome.violations, selected, ctx), stderr: outcome.stderr ?? [] };
 }
 
 async function runCheckForSource(
   rules: Rule[],
   ctx: RunContext,
   binding: SourceCheck,
-): Promise<Violation[]> {
+): Promise<CheckOutcome> {
+  if (binding.source === 'eslint') return runEslintSource(rules, ctx, binding.check);
   const selected = rules.filter((rule) => rule.source === binding.source);
   return runGroups(groupByFileSet(selected, ctx), ctx, binding.check);
 }
@@ -157,23 +196,25 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
 }
 
 const CHECK_BINDINGS: SourceCheck[] = [
-  { source: 'eslint', check: eslintCheck },
+  { source: 'eslint', check: eslintWrap },
   { source: 'custom', check: commentCheck },
   { source: 'jscpd', check: jscpdCheck },
   { source: 'knip', check: knipCheck },
 ];
 
-async function collectViolations(rules: Rule[], ctx: RunContext): Promise<Violation[]> {
-  const violations: Violation[] = [];
+async function collectOutcomes(rules: Rule[], ctx: RunContext): Promise<CheckOutcome> {
+  const merged: CheckOutcome = { violations: [], stderr: [] };
   for (const binding of CHECK_BINDINGS) {
-    violations.push(...(await runCheckForSource(rules, ctx, binding)));
+    const outcome = await runCheckForSource(rules, ctx, binding);
+    merged.violations.push(...outcome.violations);
+    if (outcome.stderr) merged.stderr!.push(...outcome.stderr);
   }
-  return violations;
+  return merged;
 }
 
 export async function run(cwd: string, options: RunOptions = {}): Promise<RunResult> {
   const { ctx, rules } = await buildContext(cwd, options);
-  const violations = await collectViolations(rules, ctx);
-  const reported = report(violations, rules);
-  return { ...reported, violations, stderr: [] };
+  const outcome = await collectOutcomes(rules, ctx);
+  const reported = report(outcome.violations, rules);
+  return { ...reported, violations: outcome.violations, stderr: outcome.stderr ?? [] };
 }

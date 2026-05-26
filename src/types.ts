@@ -31,7 +31,12 @@ export interface Violation {
   message: string;
 }
 
+export interface CheckOutcome {
+  violations: Violation[];
+  stderr?: string[];
+}
+
 export interface Check {
   id: string;
-  run(files: string[], rules: Rule[], cwd?: string): Promise<Violation[]>;
+  run(files: string[], rules: Rule[], cwd?: string): Promise<Violation[] | CheckOutcome>;
 }

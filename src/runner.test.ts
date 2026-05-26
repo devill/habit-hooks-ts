@@ -65,7 +65,7 @@ describe('runner.run with scope', () => {
   }
 
   it('changedFilesOnly rule limited to last-commit files with --last 1', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd, true);
     repo.writeFile('old-bad.ts', DIRTY_FN);
     repo.commitAll('old');
@@ -80,7 +80,7 @@ describe('runner.run with scope', () => {
   });
 
   it('full-scope rule still checks every file under --last 1', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd, false);
     repo.writeFile('old-bad.ts', DIRTY_FN);
     repo.commitAll('old');
@@ -93,7 +93,7 @@ describe('runner.run with scope', () => {
   });
 
   it('skips rule entirely when scope produces an empty file list', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeConfig(repo.cwd, true);
     repo.writeFile('old-bad.ts', DIRTY_FN);
     repo.commitAll('old');
@@ -107,7 +107,7 @@ describe('runner.run with scope', () => {
   });
 
   it('--all overrides config.onlyChangedFiles and lints the full set', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     const cfg = {
       scope: { onlyChangedFiles: true },
       rules: {
@@ -140,7 +140,7 @@ describe('runner.run with baseline', () => {
   }
 
   it('skips snoozed clean files entirely', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeMaxParamsConfig(repo.cwd);
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.commitAll('add bad');
@@ -158,7 +158,7 @@ describe('runner.run with baseline', () => {
   });
 
   it('resurfaces violations when a snoozed file is edited (working tree dirty)', async () => {
-    repo = createGitRepo();
+    repo = createGitRepo({ withEslint: true });
     writeMaxParamsConfig(repo.cwd);
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.commitAll('add bad');

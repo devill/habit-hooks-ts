@@ -84,7 +84,7 @@ describe('cli', () => {
     });
 
     it('--branch with no value uses config.scope.branchBase', () => {
-      repo = createGitRepo();
+      repo = createGitRepo({ withEslint: true });
       const cfg = {
         scope: { branchBase: 'main' },
         rules: { 'eslint:max-lines-per-function': { disabled: true } },
