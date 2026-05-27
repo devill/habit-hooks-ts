@@ -2,20 +2,21 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const BASELINE_FILENAME = '.habit-hooks-baseline.json';
-export const BASELINE_VERSION = 1;
+export const BASELINE_VERSION = 2;
+const LEGACY_BASELINE_VERSION = 1;
 
 export interface BaselineEntry {
-  snoozedAt: string;
+  snoozedAtCommit: string;
 }
 
 export interface BaselineFile {
-  version: 1;
+  version: 2;
   files: Record<string, BaselineEntry>;
 }
 
 export class BaselineVersionError extends Error {
   constructor(version: number) {
-    super(`unsupported baseline version ${String(version)}; expected ${String(BASELINE_VERSION)}`);
+    super(`unsupported baseline version ${String(version)}; expected 1 or 2`);
     this.name = 'BaselineVersionError';
   }
 }
@@ -48,41 +49,60 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function validateEntry(value: unknown, key: string): BaselineEntry {
+function validateHashField(
+  value: Record<string, unknown>,
+  key: string,
+  field: string,
+): string {
+  const hash = value[field];
+  if (typeof hash !== 'string' || hash.length === 0) {
+    throw new BaselineParseError(`entry for '${key}' is missing '${field}' string`);
+  }
+  return hash;
+}
+
+function validateEntry(value: unknown, key: string, field: string): BaselineEntry {
   if (!isPlainObject(value)) {
     throw new BaselineParseError(`entry for '${key}' must be an object`);
   }
-  const snoozedAt = value.snoozedAt;
-  if (typeof snoozedAt !== 'string' || snoozedAt.length === 0) {
-    throw new BaselineParseError(`entry for '${key}' is missing 'snoozedAt' string`);
-  }
-  return { snoozedAt };
+  return { snoozedAtCommit: validateHashField(value, key, field) };
 }
 
-function validateFiles(value: unknown): Record<string, BaselineEntry> {
+function validateFiles(
+  value: unknown,
+  field: string,
+): Record<string, BaselineEntry> {
   if (!isPlainObject(value)) {
     throw new BaselineParseError(`'files' must be an object`);
   }
   const out: Record<string, BaselineEntry> = {};
   for (const [key, entry] of Object.entries(value)) {
-    out[key] = validateEntry(entry, key);
+    out[key] = validateEntry(entry, key, field);
   }
   return out;
 }
 
-function validateVersion(value: unknown): void {
+function validateVersion(value: unknown): number {
   if (typeof value !== 'number') {
     throw new BaselineParseError(`'version' must be a number`);
   }
-  if (value !== BASELINE_VERSION) throw new BaselineVersionError(value);
+  if (value !== BASELINE_VERSION && value !== LEGACY_BASELINE_VERSION) {
+    throw new BaselineVersionError(value);
+  }
+  return value;
+}
+
+function fieldForVersion(version: number): string {
+  return version === LEGACY_BASELINE_VERSION ? 'snoozedAt' : 'snoozedAtCommit';
 }
 
 function validateBaseline(value: unknown): BaselineFile {
   if (!isPlainObject(value)) {
     throw new BaselineParseError(`root must be an object`);
   }
-  validateVersion(value.version);
-  return { version: BASELINE_VERSION, files: validateFiles(value.files) };
+  const version = validateVersion(value.version);
+  const files = validateFiles(value.files, fieldForVersion(version));
+  return { version: BASELINE_VERSION, files };
 }
 
 export function loadBaseline(cwd: string): BaselineFile {

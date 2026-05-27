@@ -146,8 +146,8 @@ describe('runner.run with baseline', () => {
     repo.commitAll('add bad');
     const hash = lastCommitHash(repo.cwd, 'bad.ts');
     saveBaseline(repo.cwd, {
-      version: 1,
-      files: { 'bad.ts': { snoozedAt: hash ?? '' } },
+      version: 2,
+      files: { 'bad.ts': { snoozedAtCommit: hash ?? '' } },
     });
 
     const result = await run(repo.cwd);
@@ -164,8 +164,8 @@ describe('runner.run with baseline', () => {
     repo.commitAll('add bad');
     const hash = lastCommitHash(repo.cwd, 'bad.ts');
     saveBaseline(repo.cwd, {
-      version: 1,
-      files: { 'bad.ts': { snoozedAt: hash ?? '' } },
+      version: 2,
+      files: { 'bad.ts': { snoozedAtCommit: hash ?? '' } },
     });
 
     repo.writeFile(

@@ -45,7 +45,7 @@ describe('baseline generate', () => {
     expect(result.exitCode).toBe(0);
     const loaded = loadBaseline(repo.cwd);
     expect(Object.keys(loaded.files)).toEqual(['bad.ts']);
-    expect(loaded.files['bad.ts'].snoozedAt).toBe(lastCommitHash(repo.cwd, 'bad.ts'));
+    expect(loaded.files['bad.ts'].snoozedAtCommit).toBe(lastCommitHash(repo.cwd, 'bad.ts'));
   });
 
   it('is deterministic: running twice produces a byte-identical file', async () => {
@@ -106,8 +106,8 @@ describe('baseline generate', () => {
     repo.writeFile('bad.ts', DIRTY_FN);
     repo.commitAll('initial');
     saveBaseline(repo.cwd, {
-      version: 1,
-      files: { 'long-gone.ts': { snoozedAt: 'deadbeef' } },
+      version: 2,
+      files: { 'long-gone.ts': { snoozedAtCommit: 'deadbeef' } },
     });
 
     await baselineGenerate(repo.cwd);
@@ -133,7 +133,7 @@ describe('baseline snooze', () => {
 
     expect(result.exitCode).toBe(0);
     const loaded = loadBaseline(repo.cwd);
-    expect(loaded.files['clean.ts'].snoozedAt).toBe(lastCommitHash(repo.cwd, 'clean.ts'));
+    expect(loaded.files['clean.ts'].snoozedAtCommit).toBe(lastCommitHash(repo.cwd, 'clean.ts'));
   });
 
   it('rejects missing files', () => {
@@ -164,8 +164,8 @@ describe('baseline forget', () => {
     repo.writeFile('a.ts', CLEAN_FN);
     repo.commitAll('initial');
     saveBaseline(repo.cwd, {
-      version: 1,
-      files: { 'a.ts': { snoozedAt: 'deadbeef' } },
+      version: 2,
+      files: { 'a.ts': { snoozedAtCommit: 'deadbeef' } },
     });
 
     const result = baselineForget(repo.cwd, ['a.ts']);
@@ -180,8 +180,8 @@ describe('baseline forget', () => {
     repo.writeFile('keep.ts', CLEAN_FN);
     repo.commitAll('initial');
     saveBaseline(repo.cwd, {
-      version: 1,
-      files: { 'gone.ts': { snoozedAt: 'deadbeef' } },
+      version: 2,
+      files: { 'gone.ts': { snoozedAtCommit: 'deadbeef' } },
     });
 
     const result = baselineForget(repo.cwd, ['gone.ts']);
@@ -193,7 +193,7 @@ describe('baseline forget', () => {
 
   it('is a no-op (exit 0) for entries that are not present', () => {
     repo = createGitRepo();
-    saveBaseline(repo.cwd, { version: 1, files: {} });
+    saveBaseline(repo.cwd, { version: 2, files: {} });
     const result = baselineForget(repo.cwd, ['anything.ts']);
     expect(result.exitCode).toBe(0);
   });
@@ -215,11 +215,11 @@ describe('baseline prune', () => {
     const badHash = lastCommitHash(repo.cwd, 'bad.ts');
     const cleanHash = lastCommitHash(repo.cwd, 'clean.ts');
     saveBaseline(repo.cwd, {
-      version: 1,
+      version: 2,
       files: {
-        'bad.ts': { snoozedAt: badHash ?? '' },
-        'clean.ts': { snoozedAt: cleanHash ?? '' },
-        'gone.ts': { snoozedAt: 'deadbeef' },
+        'bad.ts': { snoozedAtCommit: badHash ?? '' },
+        'clean.ts': { snoozedAtCommit: cleanHash ?? '' },
+        'gone.ts': { snoozedAtCommit: 'deadbeef' },
       },
     });
 
@@ -252,11 +252,11 @@ describe('baseline status', () => {
     repo.commitAll('initial');
     const currentHash = lastCommitHash(repo.cwd, 'current.ts');
     saveBaseline(repo.cwd, {
-      version: 1,
+      version: 2,
       files: {
-        'current.ts': { snoozedAt: currentHash ?? '' },
-        'changed.ts': { snoozedAt: 'olddeadbeef' },
-        'gone.ts': { snoozedAt: 'deadbeef' },
+        'current.ts': { snoozedAtCommit: currentHash ?? '' },
+        'changed.ts': { snoozedAtCommit: 'olddeadbeef' },
+        'gone.ts': { snoozedAtCommit: 'deadbeef' },
       },
     });
 

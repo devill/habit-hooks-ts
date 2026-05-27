@@ -11,7 +11,7 @@ function isSnoozed(relPath: string, baseline: BaselineFile, cwd: string): boolea
   if (entry === undefined) return false;
   const currentHash = lastCommitHash(cwd, relPath);
   if (currentHash === null) return false;
-  if (currentHash !== entry.snoozedAt) return false;
+  if (currentHash !== entry.snoozedAtCommit) return false;
   return isWorkingTreeCleanFor(cwd, relPath);
 }
 

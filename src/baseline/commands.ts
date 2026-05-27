@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { run } from '../runner.js';
 import { isWorkingTreeCleanFor, lastCommitHash } from './file-hash.js';
 import {
+  BASELINE_VERSION,
   baselineExists,
   loadBaseline,
   saveBaseline,
@@ -50,7 +51,7 @@ function tryAddSnoozeEntry(
 ): boolean {
   const hash = lastCommitHash(cwd, relPath);
   if (hash === null) return false;
-  files[relPath] = { snoozedAt: hash };
+  files[relPath] = { snoozedAtCommit: hash };
   return true;
 }
 
@@ -58,7 +59,7 @@ export async function baselineGenerate(cwd: string): Promise<CommandResult> {
   const violatingFiles = await collectViolatingFiles(cwd);
   const files = { ...loadBaseline(cwd).files };
   const added = violatingFiles.filter((p) => tryAddSnoozeEntry(files, cwd, p)).length;
-  saveBaseline(cwd, { version: 1, files });
+  saveBaseline(cwd, { version: BASELINE_VERSION, files });
   return ok(`baseline generate: recorded ${String(added)} file(s)\n`);
 }
 
@@ -73,7 +74,7 @@ function buildSnoozeBatch(cwd: string, targets: string[]): SnoozeBatch {
   for (const rel of targets) {
     const validation = validateSnoozeTarget(cwd, rel);
     if (validation.error !== null) errors.push(validation.error);
-    else updates[rel] = { snoozedAt: validation.hash };
+    else updates[rel] = { snoozedAtCommit: validation.hash };
   }
   return { errors, updates };
 }
@@ -83,7 +84,7 @@ export function baselineSnooze(cwd: string, paths: string[]): CommandResult {
   const targets = uniqueRelPaths(cwd, paths);
   const { errors, updates } = buildSnoozeBatch(cwd, targets);
   if (errors.length > 0) return err(`${errors.join('\n')}\n`);
-  saveBaseline(cwd, { version: 1, files: { ...baseline.files, ...updates } });
+  saveBaseline(cwd, { version: BASELINE_VERSION, files: { ...baseline.files, ...updates } });
   return ok(`baseline snooze: added ${String(Object.keys(updates).length)} file(s)\n`);
 }
 
@@ -113,7 +114,7 @@ export function baselineForget(cwd: string, paths: string[]): CommandResult {
   const files = { ...loadBaseline(cwd).files };
   const targets = uniqueRelPaths(cwd, paths);
   const removed = targets.filter((rel) => deleteEntry(files, rel)).length;
-  if (removed > 0) saveBaseline(cwd, { version: 1, files });
+  if (removed > 0) saveBaseline(cwd, { version: BASELINE_VERSION, files });
   return ok(`baseline forget: removed ${String(removed)} entry/entries\n`);
 }
 
@@ -130,7 +131,7 @@ export async function baselinePrune(cwd: string): Promise<CommandResult> {
   );
   const files = Object.fromEntries(kept) as Record<string, BaselineEntry>;
   const removed = Object.keys(baseline.files).length - kept.length;
-  saveBaseline(cwd, { version: 1, files });
+  saveBaseline(cwd, { version: BASELINE_VERSION, files });
   return ok(`baseline prune: removed ${String(removed)} entry/entries\n`);
 }
 
@@ -140,7 +141,7 @@ function classifyEntry(cwd: string, relPath: string, entry: BaselineEntry): Entr
   if (!existsSync(join(cwd, relPath))) return 'stale-missing';
   const hash = lastCommitHash(cwd, relPath);
   if (hash === null) return 'stale-missing';
-  if (hash !== entry.snoozedAt) return 'stale-changed';
+  if (hash !== entry.snoozedAtCommit) return 'stale-changed';
   if (!isWorkingTreeCleanFor(cwd, relPath)) return 'stale-changed';
   return 'current';
 }

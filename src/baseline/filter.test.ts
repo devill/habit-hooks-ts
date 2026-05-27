@@ -9,9 +9,9 @@ import type { BaselineFile } from './store.js';
 function baselineWith(files: Record<string, string>): BaselineFile {
   const out: BaselineFile['files'] = {};
   for (const [path, hash] of Object.entries(files)) {
-    out[path] = { snoozedAt: hash };
+    out[path] = { snoozedAtCommit: hash };
   }
-  return { version: 1, files: out };
+  return { version: 2, files: out };
 }
 
 describe('partitionBySnooze (four-quadrant)', () => {
