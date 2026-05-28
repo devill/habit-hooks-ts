@@ -5,7 +5,7 @@ export interface PromptOptions {
 }
 
 export interface Prompter {
-  ask(question: string, opts: PromptOptions): Promise<boolean>;
+  ask(_question: string, _opts: PromptOptions): Promise<boolean>;
   close(): void;
 }
 

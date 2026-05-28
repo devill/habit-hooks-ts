@@ -11,14 +11,16 @@ import {
   detectPackageManager,
   packagesFor,
 } from './install-commands.js';
-import {
-  addCiScript,
-  addHabitHooksScript,
-  type ScriptResult,
-} from './package-scripts.js';
-import { installPreCommitHook, type HookResult } from './git-hook.js';
-import { installReviewerSkill, type SkillResult } from './skill.js';
+import { addCiScript, addHabitHooksScript } from './package-scripts.js';
+import { installPreCommitHook } from './git-hook.js';
+import { installReviewerSkill } from './skill.js';
 import { AGENT_SNIPPET } from './snippet.js';
+import {
+  reportHookResult,
+  reportScriptResult,
+  reportSkillResult,
+  type Lines,
+} from './reporters.js';
 import type { Prompter } from './prompts.js';
 
 interface InitOptions {
@@ -32,21 +34,10 @@ interface InitResult {
   exitCode: number;
 }
 
-interface Lines {
-  out: string[];
-  err: string[];
-  exit: number;
-}
-
 interface Ctx {
   cwd: string;
   lines: Lines;
   dryRun: boolean;
-}
-
-function emitConflict(lines: Lines, message: string): void {
-  lines.err.push(`habit-hooks: ${message}\n`);
-  lines.exit = 2;
 }
 
 function noteScaffold(ctx: Ctx, result: ScaffoldResult, label: string): void {
@@ -60,7 +51,7 @@ function dryRunPath(ctx: Ctx, filename: string, label: string): void {
   else ctx.lines.out.push(`[dry-run] would write ${path}\n`);
 }
 
-const SCAFFOLDERS: Record<ToolName, (cwd: string) => ScaffoldResult> = {
+const SCAFFOLDERS: Record<ToolName, (_cwd: string) => ScaffoldResult> = {
   eslint: scaffoldEslintConfig,
   knip: scaffoldKnipConfig,
   jscpd: scaffoldJscpdConfig,
@@ -143,15 +134,6 @@ function writeBaselineStep(ctx: Ctx): void {
   else ctx.lines.out.push(`baseline already present at ${result.path}\n`);
 }
 
-function reportScriptResult(name: string, result: ScriptResult, lines: Lines): void {
-  if (result.action === 'added') lines.out.push(`added '${name}' to package.json scripts\n`);
-  else if (result.action === 'kept') lines.out.push(`'${name}' already set as desired in package.json\n`);
-  else if (result.action === 'no-package-json') lines.out.push(`skipped '${name}': no package.json in cwd\n`);
-  else if (result.action === 'conflict') {
-    emitConflict(lines, `refusing to replace '${name}' script (currently: ${result.before ?? '<unknown>'})`);
-  }
-}
-
 async function maybeAddHabitHooksScript(ctx: Ctx, prompter: Prompter): Promise<void> {
   if (ctx.dryRun) return;
   const yes = await prompter.ask("Add 'habit-hooks' to package.json scripts?", { defaultYes: true });
@@ -166,31 +148,11 @@ async function maybeAddCiScript(ctx: Ctx, prompter: Prompter): Promise<void> {
   reportScriptResult('ci', addCiScript(ctx.cwd), ctx.lines);
 }
 
-function reportHookResult(result: HookResult, lines: Lines): void {
-  if (result.action === 'installed') lines.out.push(`installed pre-commit hook at ${result.path}\n`);
-  else if (result.action === 'kept') lines.out.push(`pre-commit hook already installed at ${result.path}\n`);
-  else if (result.action === 'conflict') {
-    lines.out.push(`pre-commit hook already exists at ${result.path} — left untouched\n`);
-  } else if (result.action === 'no-git') {
-    lines.out.push(`skipped pre-commit hook: no .git directory in cwd\n`);
-  }
-}
-
 async function maybeInstallHook(ctx: Ctx, prompter: Prompter): Promise<void> {
   if (ctx.dryRun) return;
   const yes = await prompter.ask('Install a git pre-commit hook?', { defaultYes: false });
   if (!yes) return;
   reportHookResult(installPreCommitHook(ctx.cwd), ctx.lines);
-}
-
-function reportSkillResult(result: SkillResult, lines: Lines): void {
-  if (result.action === 'installed') lines.out.push(`installed reviewer skill at ${result.target}\n`);
-  else if (result.action === 'kept') lines.out.push(`reviewer skill already at ${result.target}\n`);
-  else if (result.action === 'conflict') {
-    lines.out.push(`reviewer skill already exists at ${result.target} — left untouched\n`);
-  } else if (result.action === 'source-missing') {
-    lines.err.push(`habit-hooks: could not find packaged SKILL.md — skipping\n`);
-  }
 }
 
 async function maybeInstallSkill(ctx: Ctx, prompter: Prompter): Promise<void> {

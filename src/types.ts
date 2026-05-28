@@ -43,5 +43,5 @@ export interface CheckOutcome {
 
 export interface Check {
   id: string;
-  run(files: string[], rules: Rule[], cwd?: string): Promise<Violation[] | CheckOutcome>;
+  run(_files: string[], _rules: Rule[], _cwd?: string): Promise<Violation[] | CheckOutcome>;
 }

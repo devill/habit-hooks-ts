@@ -11,6 +11,7 @@ import { report } from './reporter.js';
 import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve-scope.js';
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
+import { runEslintSource } from './runner-eslint.js';
 import type { HabitHooksConfig } from './config/schema.js';
 import type { Check, CheckOutcome, Rule, Violation } from './types.js';
 
@@ -48,7 +49,7 @@ async function discoverFiles(cwd: string): Promise<string[]> {
   });
 }
 
-function buildMatcher(patterns: string[] | undefined): ((path: string) => boolean) | null {
+function buildMatcher(patterns: string[] | undefined): ((_path: string) => boolean) | null {
   if (!patterns || patterns.length === 0) return null;
   return picomatch(patterns);
 }
@@ -129,33 +130,8 @@ async function runGroups(groups: FileSetGroup[], ctx: RunContext, check: Check):
   return { violations, stderr };
 }
 
-function unionFiles(rules: Rule[], ctx: RunContext): string[] {
-  const seen = new Set<string>();
-  for (const rule of rules) {
-    for (const file of resolveFilesForRule(rule, ctx)) seen.add(file);
-  }
-  return [...seen];
-}
-
-function ruleAllowsViolation(rule: Rule, file: string, ctx: RunContext): boolean {
-  return resolveFilesForRule(rule, ctx).includes(file);
-}
-
-function filterEslintViolations(violations: Violation[], rules: Rule[], ctx: RunContext): Violation[] {
-  const byId = new Map(rules.map((r) => [r.id, r] as const));
-  return violations.filter((v) => {
-    const rule = byId.get(v.ruleId);
-    if (rule === undefined) return true;
-    return ruleAllowsViolation(rule, v.file, ctx);
-  });
-}
-
-async function runEslintSource(rules: Rule[], ctx: RunContext, check: Check): Promise<CheckOutcome> {
-  const selected = rules.filter((rule) => rule.source === 'eslint');
-  const files = unionFiles(selected, ctx);
-  if (files.length === 0) return { violations: [], stderr: [] };
-  const outcome = normalizeOutcome(await check.run(files, selected, ctx.cwd));
-  return { violations: filterEslintViolations(outcome.violations, selected, ctx), stderr: outcome.stderr ?? [] };
+function eslintFilterCtx(ctx: RunContext): { resolveFilesForRule: (_rule: Rule) => string[]; cwd: string } {
+  return { resolveFilesForRule: (rule) => resolveFilesForRule(rule, ctx), cwd: ctx.cwd };
 }
 
 async function runCheckForSource(
@@ -163,7 +139,7 @@ async function runCheckForSource(
   ctx: RunContext,
   binding: SourceCheck,
 ): Promise<CheckOutcome> {
-  if (binding.source === 'eslint') return runEslintSource(rules, ctx, binding.check);
+  if (binding.source === 'eslint') return runEslintSource(rules, eslintFilterCtx(ctx), binding.check);
   const selected = rules.filter((rule) => rule.source === binding.source);
   return runGroups(groupByFileSet(selected, ctx), ctx, binding.check);
 }
@@ -203,13 +179,14 @@ const CHECK_BINDINGS: SourceCheck[] = [
 ];
 
 async function collectOutcomes(rules: Rule[], ctx: RunContext): Promise<CheckOutcome> {
-  const merged: CheckOutcome = { violations: [], stderr: [] };
+  const violations: Violation[] = [];
+  const stderr: string[] = [];
   for (const binding of CHECK_BINDINGS) {
     const outcome = await runCheckForSource(rules, ctx, binding);
-    merged.violations.push(...outcome.violations);
-    if (outcome.stderr) merged.stderr!.push(...outcome.stderr);
+    violations.push(...outcome.violations);
+    if (outcome.stderr) stderr.push(...outcome.stderr);
   }
-  return merged;
+  return { violations, stderr };
 }
 
 export async function run(cwd: string, options: RunOptions = {}): Promise<RunResult> {

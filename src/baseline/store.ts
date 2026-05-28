@@ -68,18 +68,23 @@ function validateEntry(value: unknown, key: string, field: string): BaselineEntr
   return { snoozedAtCommit: validateHashField(value, key, field) };
 }
 
-function validateFiles(
-  value: unknown,
+function mapEntries(
+  value: Record<string, unknown>,
   field: string,
 ): Record<string, BaselineEntry> {
-  if (!isPlainObject(value)) {
-    throw new BaselineParseError(`'files' must be an object`);
-  }
   const out: Record<string, BaselineEntry> = {};
   for (const [key, entry] of Object.entries(value)) {
     out[key] = validateEntry(entry, key, field);
   }
   return out;
+}
+
+function validateFiles(
+  value: unknown,
+  field: string,
+): Record<string, BaselineEntry> {
+  if (!isPlainObject(value)) throw new BaselineParseError(`'files' must be an object`);
+  return mapEntries(value, field);
 }
 
 function validateVersion(value: unknown): number {

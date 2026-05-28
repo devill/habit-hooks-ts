@@ -148,7 +148,8 @@ function missingReportOutcome(inputs: RunInputs, result: ShellResult): CheckOutc
 }
 
 async function runOnce(inputs: RunInputs, reportDir: string): Promise<CheckOutcome> {
-  const result = await spawnWrapped('jscpd', inputs.resolution, inputs.cwd, buildArgs(reportDir));
+  const { resolution, cwd } = inputs;
+  const result = await spawnWrapped({ tool: 'jscpd', resolution, cwd, args: buildArgs(reportDir) });
   if (isSpawnSkip(result)) return emptyOutcome([...inputs.notices, result.skipWarning]);
   const report = tryReadReport(reportDir);
   if (report === null) return missingReportOutcome(inputs, result);

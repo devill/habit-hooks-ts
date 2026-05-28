@@ -144,7 +144,8 @@ describe('knipWrap', () => {
     const outcome = await runWrap(cwd, [file]);
 
     expect(outcome.violations).toHaveLength(1);
-    const v = outcome.violations[0]!;
+    const [v] = outcome.violations;
+    if (v === undefined) throw new Error('expected one violation');
     expect(v.ruleId).toBe('knip:unlistedPeerDependencies');
     expect(v.file).toBe(file);
     expect(v.message).toBe('unrecognised knip issue type');
@@ -192,7 +193,8 @@ describe('knipWrap', () => {
     const outcome = await runWrap(cwd, [file]);
 
     expect(outcome.violations).toHaveLength(1);
-    const v = outcome.violations[0]!;
+    const [v] = outcome.violations;
+    if (v === undefined) throw new Error('expected one violation');
     expect(v.ruleId).toBe('knip:someFutureMemberMap');
     expect(v.file).toBe(file);
     expect(v.message).toBe('unrecognised knip issue type');
@@ -274,7 +276,8 @@ describe('knipWrap', () => {
     const outcome = await runWrap(cwd, [file]);
 
     expect(outcome.violations).toHaveLength(1);
-    const v = outcome.violations[0]!;
+    const [v] = outcome.violations;
+    if (v === undefined) throw new Error('expected one violation');
     expect(v.ruleId).toBe('knip:files');
     expect(v.message).toContain('src/walk.ts');
     expect(v.message).not.toContain('unrecognised');
@@ -301,7 +304,8 @@ describe('knipWrap', () => {
     const outcome = await runWrap(cwd, [file]);
 
     expect(outcome.violations).toHaveLength(1);
-    const v = outcome.violations[0]!;
+    const [v] = outcome.violations;
+    if (v === undefined) throw new Error('expected one violation');
     expect(v.ruleId).toBe('knip:namespaceMembers');
     expect(v.message).toContain('Mod.unused');
   });

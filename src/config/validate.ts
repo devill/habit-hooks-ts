@@ -114,16 +114,29 @@ function validateCommentCheck(value: unknown): CommentCheckConfig | undefined {
   return value as CommentCheckConfig;
 }
 
+interface ValidatedParts {
+  prompts?: string;
+  rules: HabitHooksConfig['rules'];
+  scope: ScopeConfig | undefined;
+  commentCheck: CommentCheckConfig | undefined;
+}
+
+function assembleConfig(parts: ValidatedParts): HabitHooksConfig {
+  const config: HabitHooksConfig = {};
+  if (parts.prompts !== undefined) config.prompts = parts.prompts;
+  if (parts.rules !== undefined) config.rules = parts.rules;
+  if (parts.scope !== undefined) config.scope = parts.scope;
+  if (parts.commentCheck !== undefined) config.commentCheck = parts.commentCheck;
+  return config;
+}
+
 export function validateConfig(value: unknown): HabitHooksConfig {
   if (!isPlainObject(value)) fail('config', 'an object');
   validateOptionalString(value.prompts, 'prompts');
-  const rules = validateRules(value.rules);
-  const scope = validateScope(value.scope);
-  const commentCheck = validateCommentCheck(value.commentCheck);
-  const config: HabitHooksConfig = {};
-  if (typeof value.prompts === 'string') config.prompts = value.prompts;
-  if (rules !== undefined) config.rules = rules;
-  if (scope !== undefined) config.scope = scope;
-  if (commentCheck !== undefined) config.commentCheck = commentCheck;
-  return config;
+  return assembleConfig({
+    prompts: typeof value.prompts === 'string' ? value.prompts : undefined,
+    rules: validateRules(value.rules),
+    scope: validateScope(value.scope),
+    commentCheck: validateCommentCheck(value.commentCheck),
+  });
 }

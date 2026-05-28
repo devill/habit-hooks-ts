@@ -4,7 +4,12 @@ import { isSpawnSkip, parseJsonStdout, spawnWrapped } from './run.js';
 
 describe('spawnWrapped', () => {
   it('returns the ShellResult when the tool runs to completion', async () => {
-    const result = await spawnWrapped('echo', { binPath: '/bin/echo', isFallback: false }, tmpdir(), ['hi']);
+    const result = await spawnWrapped({
+      tool: 'echo',
+      resolution: { binPath: '/bin/echo', isFallback: false },
+      cwd: tmpdir(),
+      args: ['hi'],
+    });
     expect(isSpawnSkip(result)).toBe(false);
     if (isSpawnSkip(result)) return;
     expect(result.exitCode).toBe(0);
@@ -12,12 +17,12 @@ describe('spawnWrapped', () => {
   });
 
   it('returns a skipWarning when the binary cannot be spawned', async () => {
-    const result = await spawnWrapped(
-      'ghost',
-      { binPath: '/definitely/not/here/ghost-bin', isFallback: false },
-      tmpdir(),
-      [],
-    );
+    const result = await spawnWrapped({
+      tool: 'ghost',
+      resolution: { binPath: '/definitely/not/here/ghost-bin', isFallback: false },
+      cwd: tmpdir(),
+      args: [],
+    });
     expect(isSpawnSkip(result)).toBe(true);
     if (!isSpawnSkip(result)) return;
     expect(result.skipWarning).toContain('habit-hooks: ghost skipped');
@@ -25,12 +30,12 @@ describe('spawnWrapped', () => {
   });
 
   it('passes through tool non-zero exits as a ShellResult, not a skip', async () => {
-    const result = await spawnWrapped(
-      'node',
-      { binPath: process.execPath, isFallback: false },
-      tmpdir(),
-      ['-e', 'process.exit(2)'],
-    );
+    const result = await spawnWrapped({
+      tool: 'node',
+      resolution: { binPath: process.execPath, isFallback: false },
+      cwd: tmpdir(),
+      args: ['-e', 'process.exit(2)'],
+    });
     expect(isSpawnSkip(result)).toBe(false);
     if (isSpawnSkip(result)) return;
     expect(result.exitCode).toBe(2);

@@ -31,12 +31,15 @@ function findExisting(cwd: string, candidates: readonly string[]): string | null
   return null;
 }
 
-export function scaffoldFile(
-  cwd: string,
-  candidates: readonly string[],
-  defaultName: string,
-  template: string,
-): ScaffoldResult {
+interface ScaffoldFileArgs {
+  cwd: string;
+  candidates: readonly string[];
+  defaultName: string;
+  template: string;
+}
+
+export function scaffoldFile(args: ScaffoldFileArgs): ScaffoldResult {
+  const { cwd, candidates, defaultName, template } = args;
   const existing = findExisting(cwd, candidates);
   if (existing !== null) return { path: existing, created: false };
   const path = join(cwd, defaultName);
@@ -45,5 +48,10 @@ export function scaffoldFile(
 }
 
 export function scaffoldConfig(cwd: string): ScaffoldResult {
-  return scaffoldFile(cwd, CONFIG_FILENAMES, NEW_CONFIG_FILENAME, CONFIG_TEMPLATE);
+  return scaffoldFile({
+    cwd,
+    candidates: CONFIG_FILENAMES,
+    defaultName: NEW_CONFIG_FILENAME,
+    template: CONFIG_TEMPLATE,
+  });
 }

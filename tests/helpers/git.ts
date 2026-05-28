@@ -11,9 +11,9 @@ const SHARED_ESLINT_CONFIG_PATH = join(repoRoot, 'tests', 'fixtures', '_shared',
 
 export interface GitRepo {
   cwd: string;
-  writeFile: (relPath: string, contents: string) => void;
-  commitAll: (message: string) => void;
-  run: (args: string[]) => string;
+  writeFile: (_relPath: string, _contents: string) => void;
+  commitAll: (_message: string) => void;
+  run: (_args: string[]) => string;
 }
 
 export interface CreateGitRepoOptions {

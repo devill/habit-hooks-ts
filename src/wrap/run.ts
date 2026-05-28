@@ -6,12 +6,15 @@ interface SpawnSkip {
   skipWarning: string;
 }
 
-export async function spawnWrapped(
-  tool: string,
-  resolution: BinResolution,
-  cwd: string,
-  args: string[],
-): Promise<ShellResult | SpawnSkip> {
+interface SpawnWrappedArgs {
+  tool: string;
+  resolution: BinResolution;
+  cwd: string;
+  args: string[];
+}
+
+export async function spawnWrapped(spec: SpawnWrappedArgs): Promise<ShellResult | SpawnSkip> {
+  const { tool, resolution, cwd, args } = spec;
   const target = spawnTarget(resolution.binPath, args);
   const result = await runTool({ bin: target.bin, args: target.args, cwd });
   if (isSpawnFailure(result)) return { skipWarning: spawnFailureWarning(tool, cwd, result.warnings) };

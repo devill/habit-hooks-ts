@@ -7,8 +7,8 @@ import { loadGuidance } from './loader.js';
 describe('loadGuidance', () => {
   it('loads stub markdown for a known rule id', () => {
     const text = loadGuidance('eslint:max-params');
-    expect(text).not.toBeNull();
-    expect(text!.length).toBeGreaterThan(0);
+    if (text === null) throw new Error('expected guidance text');
+    expect(text.length).toBeGreaterThan(0);
     expect(text).toMatch(/parameters/i);
   });
 

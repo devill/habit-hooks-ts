@@ -35,13 +35,17 @@ function findAllLockfileHits(cwd: string): LockfileHit[] {
 }
 
 function pickNewest(hits: LockfileHit[]): LockfileHit {
-  return [...hits].sort((a, b) => b.mtimeMs - a.mtimeMs)[0]!;
+  const sorted = [...hits].sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const newest = sorted[0];
+  if (newest === undefined) throw new Error('pickNewest requires at least one hit');
+  return newest;
 }
 
 export function detectPackageManager(cwd: string): PackageManager {
   const hits = findAllLockfileHits(cwd);
   if (hits.length === 0) return 'npm';
-  if (hits.length === 1) return hits[0]!.pm;
+  const [only] = hits;
+  if (hits.length === 1 && only !== undefined) return only.pm;
   return pickNewest(hits).pm;
 }
 

@@ -1,121 +1,23 @@
-import { createRequire } from 'node:module';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { detectTool } from '../detect/tool.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
 import { isSpawnSkip, parseJsonStdout, spawnWrapped } from '../wrap/run.js';
+import { buildKnipArgs, consumerKnipMajor, resolveKnipBin } from './knip-resolve.js';
+import {
+  KNOWN_KEYS,
+  LOCATION_KEYS,
+  MEMBER_KEYS,
+  type KnipIssue,
+  type KnipLocation,
+  type KnipMemberMap,
+  type KnipReport,
+} from './knip-schema.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
-const require = createRequire(import.meta.url);
-
-const KNIP_BASE_ARGS = ['--reporter', 'json', '--no-exit-code'];
+export { buildKnipArgs, consumerKnipMajor, resolveKnipBin };
 
 const KNIP_CONFIG_FILES = ['knip.json', 'knip.jsonc', 'knip.ts', 'knip.js'];
-
-interface KnipLocation {
-  name: string;
-  line?: number;
-  col?: number;
-}
-
-type KnipMemberMap = Record<string, KnipLocation[]>;
-
-interface KnipIssue {
-  file: string;
-  files?: KnipLocation[];
-  dependencies?: KnipLocation[];
-  devDependencies?: KnipLocation[];
-  optionalPeerDependencies?: KnipLocation[];
-  unlisted?: KnipLocation[];
-  binaries?: KnipLocation[];
-  unresolved?: KnipLocation[];
-  exports?: KnipLocation[];
-  nsExports?: KnipLocation[];
-  types?: KnipLocation[];
-  nsTypes?: KnipLocation[];
-  duplicates?: KnipLocation[][];
-  enumMembers?: KnipMemberMap;
-  classMembers?: KnipMemberMap;
-  namespaceMembers?: KnipMemberMap;
-  catalog?: KnipLocation[];
-}
-
-interface KnipReport {
-  files?: string[];
-  issues?: KnipIssue[];
-}
-
-const LOCATION_KEYS: (keyof KnipIssue)[] = [
-  'files',
-  'dependencies',
-  'devDependencies',
-  'optionalPeerDependencies',
-  'unlisted',
-  'binaries',
-  'unresolved',
-  'exports',
-  'nsExports',
-  'types',
-  'nsTypes',
-  'catalog',
-];
-
-const MEMBER_KEYS: (keyof KnipIssue)[] = ['enumMembers', 'classMembers', 'namespaceMembers'];
-
-const STRUCTURAL_KEYS = new Set<string>(['file']);
-const SPECIAL_KEYS = new Set<string>(['duplicates']);
-const KNOWN_KEYS = new Set<string>([
-  ...STRUCTURAL_KEYS,
-  ...SPECIAL_KEYS,
-  ...(LOCATION_KEYS as string[]),
-  ...(MEMBER_KEYS as string[]),
-]);
-
-function bundledKnipDir(): string {
-  const main = require.resolve('knip');
-  return join(dirname(main), '..');
-}
-
-function bundledKnipBin(): string {
-  return join(bundledKnipDir(), 'bin', 'knip.js');
-}
-
-export function resolveKnipBin(cwd: string): BinResolution {
-  const detected = detectTool(cwd, 'knip');
-  if (detected !== null) return { binPath: detected.binPath, isFallback: false };
-  return { binPath: bundledKnipBin(), isFallback: true };
-}
-
-function readMajorFromPackageJson(path: string): number | null {
-  try {
-    const pkg = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown };
-    if (typeof pkg.version !== 'string') return null;
-    const major = Number.parseInt(pkg.version.split('.')[0] ?? '', 10);
-    return Number.isFinite(major) ? major : null;
-  } catch {
-    return null;
-  }
-}
-
-export function consumerKnipMajor(cwd: string): number | null {
-  return readMajorFromPackageJson(join(cwd, 'node_modules', 'knip', 'package.json'));
-}
-
-function bundledKnipMajor(): number | null {
-  return readMajorFromPackageJson(join(bundledKnipDir(), 'package.json'));
-}
-
-function effectiveKnipMajor(resolution: BinResolution, cwd: string): number | null {
-  if (resolution.isFallback) return bundledKnipMajor();
-  return consumerKnipMajor(cwd);
-}
-
-export function buildKnipArgs(resolution: BinResolution, cwd: string): string[] {
-  const major = effectiveKnipMajor(resolution, cwd);
-  if (major !== null && major >= 6) return [...KNIP_BASE_ARGS];
-  return [...KNIP_BASE_ARGS, '--include', 'classMembers'];
-}
 
 function exitFailureWarning(cwd: string, code: number, stderr: string): string {
   const detail = firstLine(stderr);
@@ -129,18 +31,26 @@ interface IssueContext {
   issueFile: string;
 }
 
-function buildViolation(ruleId: string, file: string, message: string, loc: KnipLocation): Violation {
+interface BuildViolationArgs {
+  ruleId: string;
+  file: string;
+  message: string;
+  loc: KnipLocation;
+}
+
+function buildViolation(args: BuildViolationArgs): Violation {
+  const { ruleId, file, message, loc } = args;
   return { ruleId, file, line: loc.line ?? 1, column: loc.col, message };
 }
 
 function locationToViolation(ctx: IssueContext, loc: KnipLocation): Violation {
   const ruleId = `knip:${ctx.issueType}`;
-  return buildViolation(ruleId, absolutize(ctx.cwd, ctx.issueFile), loc.name, loc);
+  return buildViolation({ ruleId, file: absolutize(ctx.cwd, ctx.issueFile), message: loc.name, loc });
 }
 
 function memberToViolation(ctx: IssueContext, owner: string, loc: KnipLocation): Violation {
   const ruleId = `knip:${ctx.issueType}`;
-  return buildViolation(ruleId, absolutize(ctx.cwd, ctx.issueFile), `${owner}.${loc.name}`, loc);
+  return buildViolation({ ruleId, file: absolutize(ctx.cwd, ctx.issueFile), message: `${owner}.${loc.name}`, loc });
 }
 
 function flattenMemberMap(ctx: IssueContext, members: KnipMemberMap): Violation[] {
@@ -222,7 +132,7 @@ function hasKnipConfig(cwd: string): boolean {
 }
 
 async function runKnip(resolution: BinResolution, cwd: string, notices: string[]): Promise<CheckOutcome> {
-  const result = await spawnWrapped('knip', resolution, cwd, buildKnipArgs(resolution, cwd));
+  const result = await spawnWrapped({ tool: 'knip', resolution, cwd, args: buildKnipArgs(resolution, cwd) });
   if (isSpawnSkip(result)) return emptyOutcome([...notices, result.skipWarning]);
   const report = parseJsonStdout<KnipReport>(result.stdout, '{');
   if (report === null) return emptyOutcome([...notices, exitFailureWarning(cwd, result.exitCode, result.stderr)]);
