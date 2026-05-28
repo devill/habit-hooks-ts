@@ -12,6 +12,12 @@ interface RuleSeed {
 
 const supplementalSeeds: RuleSeed[] = [
   {
+    id: 'eslint:fatal',
+    title: 'ESLint fatal parse/config error',
+    description: 'ESLint could not analyze the file — a parse error, unresolvable config, or a plugin threw.',
+    severity: 'enforced',
+  },
+  {
     id: 'eslint:boundaries/dependencies',
     title: 'Architectural layering violated',
     description: 'An upper layer reached into a lower one; restore the boundary at the seam.',

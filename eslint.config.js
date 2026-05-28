@@ -11,6 +11,9 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       'max-lines-per-function': ['error', { max: 12, skipBlankLines: false, skipComments: false, IIFEs: true }],

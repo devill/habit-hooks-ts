@@ -22,6 +22,8 @@ interface EslintMessage {
   message: string;
   line: number;
   column?: number;
+  severity?: number;
+  fatal?: boolean;
 }
 
 interface EslintFileResult {
@@ -55,17 +57,38 @@ function isConfigError(result: ShellResult, parsed: EslintFileResult[] | null): 
   return result.exitCode !== 0 && result.exitCode !== 1;
 }
 
-function messageToViolation(filePath: string, m: EslintMessage): Violation | null {
-  if (m.ruleId === null) return null;
+function messageToViolation(filePath: string, m: EslintMessage & { ruleId: string }): Violation {
   const ruleId = `eslint:${m.ruleId}`;
   const prompt = lookupPrompt(ruleId);
   const title = prompt?.title ?? m.ruleId;
   return { ruleId, file: filePath, line: m.line, column: m.column, message: `${title}: ${m.message}` };
 }
 
+function fatalToViolation(filePath: string, m: EslintMessage): Violation {
+  return {
+    ruleId: 'eslint:fatal',
+    file: filePath,
+    line: m.line,
+    column: m.column,
+    message: `Fatal parse/config error: ${m.message}`,
+  };
+}
+
+function isFatalMessage(m: EslintMessage): boolean {
+  if (m.ruleId !== null) return false;
+  if (m.fatal === true) return true;
+  return m.severity === 2;
+}
+
+function toViolation(filePath: string, m: EslintMessage): Violation | null {
+  if (isFatalMessage(m)) return fatalToViolation(filePath, m);
+  if (m.ruleId === null) return null;
+  return messageToViolation(filePath, { ...m, ruleId: m.ruleId });
+}
+
 function fileResultToViolations(result: EslintFileResult): Violation[] {
   return result.messages
-    .map((m) => messageToViolation(result.filePath, m))
+    .map((m) => toViolation(result.filePath, m))
     .filter((v): v is Violation => v !== null);
 }
 
