@@ -9,6 +9,7 @@ import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
 import { SensorRunner } from './sensors/runner.js';
 import { buildPresetSensors, issueToViolation } from './sensors/preset.js';
+import type { Sensor } from './sensors/types.js';
 import type { HabitHooksConfig } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
 
@@ -105,14 +106,27 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   return { ctx: { cwd, files, scope, baseline }, rules };
 }
 
-// Detection runs every preset sensor over the full discovered file set and
-// merges their issues; rule-scoped file filtering is applied afterwards so the
-// sensor stage stays a pure smell detector (docs/sensors.md).
+// A sensor runs only when at least one smell it produces has an active rule
+// resolving to a non-empty file set. This reproduces the legacy "a tool runs
+// iff its source has an active in-scope rule" gate, so disabling or
+// empty-scoping a sensor's smells suppresses the whole tool (including its
+// uncoached sibling smells) rather than letting its findings leak through.
+function sensorActive(sensor: Sensor, rulesById: Map<string, Rule>, ctx: RunContext): boolean {
+  return sensor.produces.some((smell) => {
+    const rule = rulesById.get(smell);
+    return rule !== undefined && resolveFilesForRule(rule, ctx).length > 0;
+  });
+}
+
+// Active sensors detect over the full discovered file set and their issues are
+// merged; rule-scoped file filtering is applied afterwards so the sensor stage
+// stays a pure smell detector (docs/sensors.md).
 async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Violation[]; notices: string[] }> {
   const notices: string[] = [];
-  const commentRule = rules.find((r) => r.id === COMMENT_SMELL);
-  const runner = new SensorRunner(buildPresetSensors({ notices, commentRule }));
-  const issues = await runner.run({ files: ctx.files, cwd: ctx.cwd });
+  const rulesById = new Map(rules.map((r) => [r.id, r] as const));
+  const all = buildPresetSensors({ notices, commentRule: rulesById.get(COMMENT_SMELL) });
+  const active = all.filter((sensor) => sensorActive(sensor, rulesById, ctx));
+  const issues = await new SensorRunner(active).run({ files: ctx.files, cwd: ctx.cwd });
   return { violations: issues.map(issueToViolation), notices };
 }
 

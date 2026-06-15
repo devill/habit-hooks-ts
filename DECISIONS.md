@@ -48,20 +48,25 @@ Each is labelled _agent decision_ per the working agreement.
   preset; multi-sensor ordering/`ctx.deps` is implemented and tested with fakes but
   no multi sensor ships (out of scope).
 
-- **2b integration: detect over all files, filter per smell afterwards.**
-  *(agent decision)* `run()` runs every preset sensor over the full discovered
-  file set via `SensorRunner`, then `filterViolations` keeps a violation only if
-  its smell's rule allows the file (uncoached smells with no rule are never
-  file-filtered). This replaces the old per-source dispatch (eslint union +
-  `filterEslintViolations`, group-by-file-set for the rest) and lets the sensor
-  stage stay a pure detector — the rule-scoped filtering is the seam the Phase 3
-  mapper will own. Verified parity: CLI golden output byte-identical, full suite
-  green. `src/eslint-runner.ts` deleted (its union/post-filter folded in).
+- **2b integration: gated detect over all files, filter per smell afterwards.**
+  *(agent decision)* `run()` runs each *active* preset sensor over the full
+  discovered file set via `SensorRunner`, then `filterViolations` keeps a
+  violation only if its smell's rule allows the file (uncoached smells with no
+  rule are never file-filtered). A sensor is **active** iff at least one smell it
+  `produces` has a rule resolving to a non-empty file set — reproducing the old
+  "a tool runs iff its source has an active in-scope rule" gate, so disabling or
+  empty-scoping a sensor's smells suppresses the whole tool (and its uncoached
+  sibling smells), not just its coached output. This replaces the old per-source
+  dispatch (eslint union + `filterEslintViolations`, group-by-file-set for the
+  rest) and lets the sensor stage stay a pure detector — rule-scoped filtering is
+  the seam the Phase 3 mapper will own. Verified parity: CLI golden byte-identical,
+  full suite green, plus new gating tests. `src/eslint-runner.ts` deleted.
 
-- **Known, accepted divergence: knip findings are now baseline-filtered.**
+- **Known, accepted divergence: knip's coached findings now respect the baseline.**
   *(agent decision)* The old code never file-filtered knip output (knip runs
-  whole-project); the new uniform filter drops a knip finding for a
-  baseline-snoozed file (the `unused-class-member` rule has `changedFilesOnly:
-  false`, so scope is unaffected; only baseline can drop it). This is unreachable
-  by any existing test and not promised by the docs; treating a snoozed file as
-  snoozed for every sensor is the more consistent behaviour, so it is accepted.
+  whole-project and its violations bypassed filtering); the new uniform filter
+  drops an `unused-class-member` finding for a **baseline-snoozed** file (that
+  rule has `changedFilesOnly: false`, so scope can't drop it — only the baseline
+  can). Unreachable by any existing test and not promised by the docs; treating a
+  snoozed file as snoozed for every sensor is the more consistent behaviour
+  (arguably a latent bugfix), so it is accepted.

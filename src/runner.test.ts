@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { run } from './runner.js';
 import { lastCommitHash } from './baseline/file-hash.js';
 import { saveBaseline } from './baseline/store.js';
@@ -44,6 +45,38 @@ describe('runner.run', () => {
     expect(result.stdout).toContain('Too many parameters');
     expect(result.stdout).toContain('CUSTOM PROJECT GUIDANCE');
     expect(result.stdout).not.toContain('Function complexity is high');
+  });
+});
+
+describe('runner.run sensor gating', () => {
+  let dir: string;
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const LONG_COMMENT = 'const x = 1;\n// this comment is long enough to be flagged\nexport const y = x;\n';
+
+  it('fires non-essential-comment by default (control)', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'hh-gate-'));
+    writeFileSync(join(dir, 'a.ts'), LONG_COMMENT);
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'non-essential-comment')).toBe(true);
+  });
+
+  it('suppresses a non-eslint sensor entirely when its smell is disabled', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'hh-gate-'));
+    writeFileSync(join(dir, 'a.ts'), LONG_COMMENT);
+    writeFileSync(
+      join(dir, 'habit-hooks.config.json'),
+      JSON.stringify({ rules: { 'non-essential-comment': { disabled: true } } }),
+    );
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'non-essential-comment')).toBe(false);
   });
 });
 
