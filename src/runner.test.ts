@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { run } from './runner.js';
 import { lastCommitHash } from './baseline/file-hash.js';
@@ -65,6 +65,18 @@ describe('runner.run sensor gating', () => {
 
     expect(result.violations.some((v) => v.ruleId === 'non-essential-comment')).toBe(true);
   });
+
+  it('exits 1 for an enforced smell that has no dedicated prompt template', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'hh-gate-'));
+    symlinkSync(join(here, '..', 'node_modules'), join(dir, 'node_modules'), 'dir');
+    writeFileSync(join(dir, 'eslint.config.mjs'), 'export default [{ rules: { eqeqeq: "error" } }];\n');
+    writeFileSync(join(dir, 'a.js'), 'export const x = 1 == 1;\n');
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'loose-equality')).toBe(true);
+    expect(result.exitCode).toBe(1);
+  }, 30_000);
 
   it('suppresses a non-eslint sensor entirely when its smell is disabled', async () => {
     dir = mkdtempSync(join(tmpdir(), 'hh-gate-'));

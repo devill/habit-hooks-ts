@@ -126,3 +126,16 @@ Each is labelled _agent decision_ per the working agreement.
   miss: `packaged-dir.ts` probed the renamed `eslint-max-params.md` (worked only
   via the src fallback); now probes `too-many-parameters.md`. `.njk` partials are
   added to the published `files`.
+
+- **4b fix: a routed smell with no tuned template falls back to `uncoached.md`,
+  not the uncoached bucket.** *(agent decision)* Reviewer found an exit-code
+  regression: seven enabled `enforced` smells ship no `<smell>.md`, so they were
+  dropping to the uncoached bucket (exit 0), whereas the old reporter exited 1 for
+  any enforced smell with a violation (docs/guide.md: "enforced smell with an
+  unresolved issue -> 1"). Fix: a smell that **has routing** (known severity from
+  config or catalogue) always becomes an action — its `<smell>.md` if present,
+  else the generic `uncoached.md` body — keeping its severity so it renders as a
+  section and escalates the exit. Only a smell with **no routing at all** (truly
+  unknown, e.g. eslint `no-console`) goes to the uncoached bucket (never
+  escalates). Matches the old reporter exactly. Guarded by a runner test isolating
+  an enforced-but-untemplated smell (`loose-equality` -> exit 1).

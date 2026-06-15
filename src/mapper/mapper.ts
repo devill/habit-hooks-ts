@@ -94,11 +94,20 @@ interface MapContext {
   dirs: MapperDirs;
 }
 
+// A routed smell (known severity from config or catalogue) always becomes an
+// action: its dedicated template if present, otherwise the generic uncoached.md
+// body — so an enforced smell with no tuned prompt still renders and still
+// escalates the exit code. Only a smell with no routing at all is truly uncoached.
+function resolveActionFix(smell: string, routing: SmellRouting, dirs: MapperDirs): Fix | null {
+  return resolveFix(smell, routing.fix, dirs) ?? resolveFix('uncoached', undefined, dirs);
+}
+
 function resolveAction(smell: string, group: Issue[], ctx: MapContext): GuideAction | null {
   const routing = ctx.routingFor(smell);
-  const fix = resolveFix(smell, routing?.fix, ctx.dirs);
+  if (routing === undefined) return null;
+  const fix = resolveActionFix(smell, routing, ctx.dirs);
   if (fix === null) return null;
-  const { severity = 'suggested', title = smell, description = '' } = routing ?? {};
+  const { severity, title = smell, description = '' } = routing;
   return { smell, severity, title, description, issues: group, action: fix };
 }
 

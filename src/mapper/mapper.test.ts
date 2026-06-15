@@ -88,16 +88,20 @@ describe('mapIssues', () => {
     expect(result.uncoached).toEqual([]);
   });
 
-  it('routes a smell with no resolvable fix into the uncoached bucket', () => {
+  it('routes a smell with no routing into the uncoached bucket', () => {
     const issues = [issue('mystery-smell', '/x.ts')];
     const result = mapIssues(issues, routing, { packagedDir });
     expect(result.actions).toEqual([]);
     expect(result.uncoached).toEqual(issues);
   });
 
-  it('defaults severity to suggested when routing is absent but a template exists', () => {
-    writeFileSync(join(packagedDir, 'duplicated-code.md'), 'PROMPT');
-    const result = mapIssues([issue('duplicated-code', '/a.ts')], routing, { packagedDir });
-    expect(result.actions[0]?.severity).toBe('suggested');
+  it('falls back to uncoached.md for a routed enforced smell with no dedicated template', () => {
+    writeFileSync(join(packagedDir, 'uncoached.md'), 'GENERIC GUIDANCE');
+    const routed: RoutingLookup = (smell) => (smell === 'loose-equality' ? { severity: 'enforced' } : undefined);
+    const result = mapIssues([issue('loose-equality', '/a.ts')], routed, { packagedDir });
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0]?.severity).toBe('enforced');
+    expect(result.actions[0]?.action).toEqual({ kind: 'prompt', templatePath: join(packagedDir, 'uncoached.md') });
+    expect(result.uncoached).toEqual([]);
   });
 });
