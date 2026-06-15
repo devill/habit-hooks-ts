@@ -1,0 +1,5 @@
+Oversized functions, grouped by file:
+{% for file, group in issues | groupby("details.file") %}
+{{ file }} — {{ group | length }} function(s):
+{% for i in group %}  - {{ i.details.message }}
+{% endfor %}{% endfor %}

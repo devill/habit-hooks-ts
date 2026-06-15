@@ -14,6 +14,8 @@ export type Fix =
 export interface GuideAction {
   smell: string;
   severity: Severity;
+  title: string;
+  description: string;
   issues: Issue[];
   action: Fix;
 }
@@ -27,6 +29,8 @@ export interface MapResult {
 export interface SmellRouting {
   severity: Severity;
   fix?: string;
+  title?: string;
+  description?: string;
 }
 
 export interface MapperDirs {
@@ -85,16 +89,28 @@ function groupBySmell(issues: Issue[]): Map<string, Issue[]> {
 
 export type RoutingLookup = (_smell: string) => SmellRouting | undefined;
 
+interface MapContext {
+  routingFor: RoutingLookup;
+  dirs: MapperDirs;
+}
+
+function resolveAction(smell: string, group: Issue[], ctx: MapContext): GuideAction | null {
+  const routing = ctx.routingFor(smell);
+  const fix = resolveFix(smell, routing?.fix, ctx.dirs);
+  if (fix === null) return null;
+  const { severity = 'suggested', title = smell, description = '' } = routing ?? {};
+  return { smell, severity, title, description, issues: group, action: fix };
+}
+
 // Group the bag by smell and resolve each group to one action carrying its
 // issues; a smell with no resolvable fix falls through to the uncoached bucket.
 export function mapIssues(issues: Issue[], routingFor: RoutingLookup, dirs: MapperDirs): MapResult {
   const actions: GuideAction[] = [];
   const uncoached: Issue[] = [];
   for (const [smell, group] of groupBySmell(issues)) {
-    const routing = routingFor(smell);
-    const fix = resolveFix(smell, routing?.fix, dirs);
-    if (fix === null) uncoached.push(...group);
-    else actions.push({ smell, severity: routing?.severity ?? 'suggested', issues: group, action: fix });
+    const action = resolveAction(smell, group, { routingFor, dirs });
+    if (action === null) uncoached.push(...group);
+    else actions.push(action);
   }
   return { actions, uncoached };
 }

@@ -110,3 +110,19 @@ Each is labelled _agent decision_ per the working agreement.
   work). Command fixes render nothing (out of scope). Reviewer's Phase-4 seam — a
   `routingFor` that folds in the supplemental seeds (e.g. `parse-error` at
   `enforced`) — is handled in 4b's runner wiring as `rule ?? lookupPrompt(smell)`.
+
+- **4b: `run()` is now sensor -> mapper -> guide; the reporter is retired.**
+  *(agent decision)* `run()` detects via sensors, filters per smell, converts to
+  the `Issue` bag, maps to `GuideAction[]` (routing = merged rule ?? `lookupPrompt`
+  so `parse-error` keeps `enforced`), and renders with the guide. `src/reporter.ts`
+  and its test are deleted. The guide composes each section — `❌ {title}` /
+  description / the prompt template / an issue list — so the output stays close to
+  the old reporter format (titles, `file:line - message`, banner all preserved),
+  keeping the substring-based integration tests green. Two changes are intentional
+  new snapshots: section **order** now follows issue arrival (sensor order) rather
+  than catalogue order, and the per-rule "(N more …)" cap is gone (templates list
+  all issues). `oversized-function` ships a `.issues.njk` that groups by file —
+  the real per-smell grouping the DoD asks for. Also fixed a second latent Phase-1
+  miss: `packaged-dir.ts` probed the renamed `eslint-max-params.md` (worked only
+  via the src fallback); now probes `too-many-parameters.md`. `.njk` partials are
+  added to the published `files`.

@@ -232,7 +232,7 @@ describe('knipWrap', () => {
     expect(ruleIds).toEqual(['someFutureType', 'unlistedPeerDependencies']);
   });
 
-  it('unknown knip issue types flow through reporter as uncoached', async () => {
+  it('surfaces an unknown knip issue type as a bare-key smell with knip provenance', async () => {
     const knipDir = join(cwd, 'node_modules', 'knip');
     mkdirSync(knipDir, { recursive: true });
     const payload = {
@@ -251,12 +251,12 @@ describe('knipWrap', () => {
     const file = writeFile(cwd, 'src/a.ts', 'export const a = 1;\n');
 
     const outcome = await runWrap(cwd, [file]);
-    const { report } = await import('../reporter.js');
-    const reported = report(outcome.violations, []);
 
-    expect(reported.stdout).toContain('Uncoached rules');
-    expect(reported.stdout).toContain('knip:newKnipIssueType');
-    expect(reported.exitCode).toBe(0);
+    expect(outcome.violations).toHaveLength(1);
+    const [v] = outcome.violations;
+    if (v === undefined) throw new Error('expected one violation');
+    expect(v.ruleId).toBe('newKnipIssueType');
+    expect(v.source).toBe('knip:newKnipIssueType');
   });
 
   it('emits an unused-file violation for per-issue files entries (knip 6 shape)', async () => {

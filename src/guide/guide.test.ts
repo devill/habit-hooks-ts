@@ -15,10 +15,19 @@ interface ActionSpec {
   severity: 'enforced' | 'suggested';
   path: string;
   issues: Issue[];
+  title?: string;
+  description?: string;
 }
 
 function promptAction(spec: ActionSpec): GuideAction {
-  return { smell: spec.smell, severity: spec.severity, issues: spec.issues, action: { kind: 'prompt', templatePath: spec.path } };
+  return {
+    smell: spec.smell,
+    severity: spec.severity,
+    title: spec.title ?? spec.smell,
+    description: spec.description ?? '',
+    issues: spec.issues,
+    action: { kind: 'prompt', templatePath: spec.path },
+  };
 }
 
 describe('guide', () => {
@@ -38,7 +47,7 @@ describe('guide', () => {
   }
 
   function run(result: MapResult): { stdout: string; exitCode: number } {
-    return guide({ result, searchPaths: [dir] });
+    return guide({ result, dirs: { packagedDir: dir } });
   }
 
   it('prints the clean banner and exit 0 when there is nothing to coach', () => {
@@ -48,25 +57,30 @@ describe('guide', () => {
     expect(out.stdout).toContain('reviewer sub-agent');
   });
 
-  it('renders a prompt template against its smell and issues', () => {
-    const path = template('too-many-parameters.md', '## {{ smell }}\n{{ issues | length }} issue(s)');
+  it('composes a section: title, description, prose, and the default issue list', () => {
+    const path = template('too-many-parameters.md', 'Prose for {{ smell }}.');
     const action = promptAction({
       smell: 'too-many-parameters',
       severity: 'enforced',
       path,
-      issues: [issue('too-many-parameters', '/a.ts')],
+      issues: [issue('too-many-parameters', '/a.ts', 4)],
+      title: 'Too many parameters',
+      description: 'Functions with many parameters violate single responsibility.',
     });
 
     const out = run({ actions: [action], uncoached: [] });
 
-    expect(out.stdout).toContain('## too-many-parameters');
-    expect(out.stdout).toContain('1 issue(s)');
     expect(out.stdout).toContain('Habit Hooks: 1 violation');
+    expect(out.stdout).toContain('❌ Too many parameters');
+    expect(out.stdout).toContain('Functions with many parameters violate single responsibility.');
+    expect(out.stdout).toContain('Prose for too-many-parameters.');
+    expect(out.stdout).toContain('Violations:');
+    expect(out.stdout).toContain('/a.ts:4 - issue at 4');
     expect(out.exitCode).toBe(1);
   });
 
   it('exits 0 when only suggested smells fired', () => {
-    const path = template('warning-comment.md', '{{ issues | length }}');
+    const path = template('warning-comment.md', 'prose');
     const action = promptAction({
       smell: 'warning-comment',
       severity: 'suggested',
@@ -76,14 +90,12 @@ describe('guide', () => {
     expect(run({ actions: [action], uncoached: [] }).exitCode).toBe(0);
   });
 
-  it('groups a smell over multiple issues by file (per-smell grouping)', () => {
-    const body = [
-      '## {{ smell }} ({{ issues | length }})',
-      '{% for file, group in issues | groupby("details.file") %}',
-      '{{ file }}: {{ group | length }}',
-      '{% endfor %}',
-    ].join('\n');
-    const path = template('oversized-function.md', body);
+  it('uses a per-smell <smell>.issues.njk to group issues by file', () => {
+    const path = template('oversized-function.md', 'prose');
+    template(
+      'oversized-function.issues.njk',
+      '{% for file, group in issues | groupby("details.file") %}{{ file }}: {{ group | length }}\n{% endfor %}',
+    );
     const issues = [
       issue('oversized-function', '/a.ts', 1),
       issue('oversized-function', '/a.ts', 9),
@@ -93,9 +105,9 @@ describe('guide', () => {
 
     const out = run({ actions: [action], uncoached: [] });
 
-    expect(out.stdout).toContain('## oversized-function (3)');
     expect(out.stdout).toContain('/a.ts: 2');
     expect(out.stdout).toContain('/b.ts: 1');
+    expect(out.stdout).not.toContain('Violations:');
   });
 
   it('lists the uncoached bucket with provenance and does not escalate the exit code', () => {

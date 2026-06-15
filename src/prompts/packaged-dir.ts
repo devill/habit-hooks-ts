@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const PROBE_FILE = 'eslint-max-params.md';
+const PROBE_FILE = 'too-many-parameters.md';
 const SRC_PROMPTS_RELATIVE = join('..', '..', 'src', 'prompts');
 
 export function resolvePackagedDir(): string {

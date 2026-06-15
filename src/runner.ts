@@ -1,14 +1,17 @@
-import { dirname, relative } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import fg from 'fast-glob';
 import picomatch from 'picomatch';
 import { loadConfig, loadConfigFromPath } from './config/load.js';
 import { buildRules } from './rules/registry.js';
-import { report } from './reporter.js';
+import { lookupPrompt } from './prompts/registry.js';
+import { resolvePackagedDir } from './prompts/packaged-dir.js';
 import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve-scope.js';
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
 import { SensorRunner } from './sensors/runner.js';
-import { buildPresetSensors, issueToViolation } from './sensors/preset.js';
+import { buildPresetSensors, issueToViolation, violationToIssue } from './sensors/preset.js';
+import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.js';
+import { guide } from './guide/guide.js';
 import type { Sensor } from './sensors/types.js';
 import type { HabitHooksConfig } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
@@ -33,6 +36,7 @@ interface RunContext {
   files: string[];
   scope: ResolvedScope;
   baseline: BaselineFile | null;
+  promptsDir?: string;
 }
 
 async function discoverFiles(cwd: string): Promise<string[]> {
@@ -97,13 +101,19 @@ function resolveBaseline(cwd: string, options: RunOptions): BaselineFile | null 
   return loadBaseline(cwd);
 }
 
+function resolvePromptsDir(config: HabitHooksConfig, configDir: string): string | undefined {
+  if (config.prompts === undefined) return undefined;
+  return isAbsolute(config.prompts) ? config.prompts : resolve(configDir, config.prompts);
+}
+
 async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: RunContext; rules: Rule[] }> {
   const { config, configDir } = await resolveConfig(cwd, options);
   const rules = buildRules(config, configDir);
   const files = await discoverFiles(cwd);
   const scope = resolveScope(options.scopeFlags ?? {}, config.scope, cwd);
   const baseline = resolveBaseline(cwd, options);
-  return { ctx: { cwd, files, scope, baseline }, rules };
+  const promptsDir = resolvePromptsDir(config, configDir);
+  return { ctx: { cwd, files, scope, baseline, promptsDir }, rules };
 }
 
 // A sensor runs only when at least one smell it produces has an active rule
@@ -147,10 +157,28 @@ function filterViolations(violations: Violation[], rules: Rule[], ctx: RunContex
   });
 }
 
+// Routing for the mapper: the merged smell config wins; otherwise the catalogue
+// (prompt registry) supplies severity/title for supplemental smells such as
+// `parse-error`, so its `enforced` severity survives. Unknown smells -> uncoached.
+function buildRouting(rules: Rule[]): RoutingLookup {
+  const byId = new Map(rules.map((r) => [r.id, r] as const));
+  return (smell) => {
+    const rule = byId.get(smell);
+    if (rule !== undefined) {
+      return { severity: rule.severity, fix: rule.fix, title: rule.title, description: rule.description };
+    }
+    const prompt = lookupPrompt(smell);
+    if (prompt === null) return undefined;
+    return { severity: prompt.severity, title: prompt.title, description: prompt.description };
+  };
+}
+
 export async function run(cwd: string, options: RunOptions = {}): Promise<RunResult> {
   const { ctx, rules } = await buildContext(cwd, options);
   const detected = await detect(ctx, rules);
   const violations = filterViolations(detected.violations, rules, ctx);
-  const reported = report(violations, rules);
-  return { ...reported, violations, stderr: detected.notices };
+  const dirs: MapperDirs = { overrideDir: ctx.promptsDir, packagedDir: resolvePackagedDir() };
+  const mapped = mapIssues(violations.map(violationToIssue), buildRouting(rules), dirs);
+  const rendered = guide({ result: mapped, dirs });
+  return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr: detected.notices };
 }
