@@ -30,3 +30,20 @@ Each is labelled _agent decision_ per the working agreement.
 
 - **`parse-error` stays a supplemental prompt** (no default `Rule`), exactly as
   the old `eslint:fatal` did — it has a tuned template but no catalogue entry.
+
+## Phase 2 — Sensor contract + runner (leaf-only)
+
+- **Phase 2 split into 2a + 2b.** *(agent decision)* 2a introduces the `Sensor` /
+  `Issue` / `SensorContext` contract (`src/sensors/types.ts`) and a `SensorRunner`
+  (`src/sensors/runner.ts`) that registers sensors, orders them by dependency, and
+  merges issues — fully unit-tested in isolation, no pipeline integration yet. 2b
+  makes the four wraps registered sensor plugins and wires them into `run()` with
+  `Issue` <-> `Violation` conversion, preserving golden parity. The split keeps
+  each commit small and reviewable, and de-risks the parity-sensitive integration.
+
+- **`SensorRunner.run` returns `Issue[]`** per docs. *(agent decision)* Dependency
+  ordering uses a stable topological sort (registration order preserved among
+  ready sensors); unsatisfiable `dependsOn` smells and cycles throw at
+  construction (startup error), per docs/sensors.md. Leaf-only is exercised by the
+  preset; multi-sensor ordering/`ctx.deps` is implemented and tested with fakes but
+  no multi sensor ships (out of scope).
