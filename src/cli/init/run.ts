@@ -1,6 +1,8 @@
 import { scaffoldConfig } from './scaffold-config.js';
 import { scaffoldBaseline } from './scaffold-baseline.js';
 import { runToolSteps } from './tool-steps.js';
+import { detectToolStates, toolsForLanguage } from './detect.js';
+import { completionReport } from './completion-report.js';
 import { dryRunPath, noteScaffold, type Ctx } from './ctx.js';
 import { detectionReport } from './report-language.js';
 import type { Language } from '../../config/schema.js';
@@ -77,6 +79,12 @@ async function maybeInstallSkill(ctx: Ctx, prompter: Prompter): Promise<void> {
   reportSkillResults(installSkills(), ctx.lines);
 }
 
+function printCompletionReport(ctx: Ctx): void {
+  const tools = toolsForLanguage(ctx.language);
+  const matrix = detectToolStates(ctx.cwd);
+  ctx.lines.out.push(completionReport({ cwd: ctx.cwd, language: ctx.language, tools, matrix }));
+}
+
 function printSnippet(ctx: Ctx): void {
   ctx.lines.out.push('\n--- paste into CLAUDE.md / AGENTS.md ---\n');
   ctx.lines.out.push(agentSnippet(ctx.language));
@@ -108,6 +116,7 @@ async function scaffold(ctx: Ctx, prompter: Prompter): Promise<InitResult> {
   writeConfigStep(ctx);
   writeBaselineStep(ctx);
   await runPrompts(ctx, prompter);
+  printCompletionReport(ctx);
   printSnippet(ctx);
   return toResult(ctx.lines);
 }
