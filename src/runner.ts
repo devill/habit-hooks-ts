@@ -1,11 +1,11 @@
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
-import picomatch from 'picomatch';
+import { dirname, isAbsolute, resolve } from 'node:path';
+import { filterFilesForRule } from './rule-files.js';
 import { discoverFiles } from './discover.js';
 import { loadConfig, loadConfigFromPath, RULES_DEPRECATION } from './config/load.js';
 import { buildRules } from './rules/registry.js';
 import { lookupPrompt } from './prompts/registry.js';
 import { resolvePackagedDir } from './prompts/packaged-dir.js';
-import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve-scope.js';
+import { resolveScope, type ResolvedScope, type ScopeFlags, type ScopeMode } from './git/resolve-scope.js';
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
 import { createSnoozeIndex, type SnoozeIndex } from './baseline/snooze-index.js';
@@ -20,14 +20,15 @@ import type { Rule, Violation } from './types.js';
 
 const COMMENT_SMELL = 'non-essential-comment';
 
-interface RunResult {
+export interface RunResult {
   stdout: string;
   stderr: string[];
   exitCode: number;
   violations: Violation[];
+  scopeMode: ScopeMode;
 }
 
-interface RunOptions {
+export interface RunOptions {
   configPath?: string;
   scopeFlags?: ScopeFlags;
   applyBaseline?: boolean;
@@ -42,23 +43,6 @@ interface RunContext {
   language: Language;
   promptsDir?: string;
   configWarnings: string[];
-}
-
-function buildMatcher(patterns: string[] | undefined): ((_path: string) => boolean) | null {
-  if (!patterns || patterns.length === 0) return null;
-  return picomatch(patterns);
-}
-
-function filterFilesForRule(rule: Rule, files: string[], cwd: string): string[] {
-  const includeMatcher = buildMatcher(rule.include);
-  const excludeMatcher = buildMatcher(rule.exclude);
-  if (!includeMatcher && !excludeMatcher) return files;
-  return files.filter((file) => {
-    const rel = relative(cwd, file);
-    if (includeMatcher && !includeMatcher(rel)) return false;
-    if (excludeMatcher && excludeMatcher(rel)) return false;
-    return true;
-  });
 }
 
 function applyScopeToRule(rule: Rule, files: string[], scope: ResolvedScope): string[] {
@@ -181,5 +165,5 @@ export async function run(cwd: string, options: RunOptions = {}): Promise<RunRes
   const mapped = mapIssues(violations.map(violationToIssue), buildRouting(rules), dirs);
   const rendered = await guide({ result: mapped, dirs, cwd });
   const stderr = [...ctx.configWarnings, ...detected.notices];
-  return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr };
+  return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr, scopeMode: ctx.scope.mode };
 }
