@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { run } from './runner.js';
@@ -46,5 +48,41 @@ describe.skipIf(!PY_TOOLS)('acceptance: python preset on python-project fixture'
 
   it('exits non-zero because enforced python smells are present', async () => {
     expect((await run(pythonProject)).exitCode).toBe(1);
+  }, 30_000);
+});
+
+// oversized-file is a pure line count (no ruff rule), so this runs without the
+// Python toolchain — the ruff/deptry sensors simply find nothing.
+describe('python oversized-file (line-count sensor)', () => {
+  let dir: string;
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function pythonProjectAt(maxModuleLines?: number): void {
+    dir = mkdtempSync(join(tmpdir(), 'hh-py-oversized-'));
+    writeFileSync(join(dir, 'habit-hooks.config.json'), JSON.stringify({ language: 'python' }));
+    if (maxModuleLines !== undefined) {
+      writeFileSync(join(dir, 'pyproject.toml'), `[tool.habit-hooks]\nmax-module-lines = ${String(maxModuleLines)}\n`);
+    }
+  }
+
+  it('fires for a .py file over the configured max-module-lines threshold', async () => {
+    pythonProjectAt(5);
+    writeFileSync(join(dir, 'big.py'), `${Array.from({ length: 12 }, (_, i) => `a${String(i)} = ${String(i)}`).join('\n')}\n`);
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'oversized-file')).toBe(true);
+  }, 30_000);
+
+  it('does not fire for a small .py file at the default threshold', async () => {
+    pythonProjectAt();
+    writeFileSync(join(dir, 'small.py'), 'a = 1\nb = 2\n');
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'oversized-file')).toBe(false);
   }, 30_000);
 });

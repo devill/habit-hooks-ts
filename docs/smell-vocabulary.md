@@ -90,9 +90,12 @@ to (the rest of the catalogue is shared — only the sensor layer differs).
 | `ruff:F401`         | `unused-import`       |
 | `jscpd:duplication` | `duplicated-code`     |
 | `deptry:DEP002`     | `unused-dependency`   |
+| `line-count:max-module-lines` | `oversized-file` |
 
 TS-only smells (`explicit-any`, `var-declaration`, …) simply do not appear in
-the Python preset. `oversized-file` has no clean ruff rule and is deferred (see
+the Python preset. `oversized-file` has no clean ruff rule, so the Python preset
+emits it from a language-agnostic line-count sensor whose threshold
+(`max-module-lines`, default 200) is read from the consumer's config text (see
 `DECISIONS.md`).
 
 ## Uncoached smells

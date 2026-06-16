@@ -115,7 +115,7 @@ function sensorActive(sensor: Sensor, rulesById: Map<string, Rule>, ctx: RunCont
 // merged; rule-scoped file filtering is applied afterwards so the sensor stage
 // stays a pure smell detector (docs/sensors.md).
 function presetSensors(ctx: RunContext, rulesById: Map<string, Rule>, notices: string[]): Sensor[] {
-  if (ctx.language === 'python') return buildPythonPresetSensors({ notices });
+  if (ctx.language === 'python') return buildPythonPresetSensors({ notices, cwd: ctx.cwd });
   return buildPresetSensors({ notices, commentRule: rulesById.get(COMMENT_SMELL) });
 }
 
