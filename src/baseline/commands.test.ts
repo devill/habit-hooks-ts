@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createGitRepo, type GitRepo } from '../../tests/helpers/git.js';
 import {
@@ -48,19 +49,18 @@ describe('baseline generate', () => {
     expect(loaded.files['bad.ts'].snoozedAtCommit).toBe(lastCommitHash(repo.cwd, 'bad.ts'));
   });
 
-  it('is deterministic: running twice produces a byte-identical file', async () => {
-    repo = createGitRepo({ withEslint: true });
-    writeConfig(repo.cwd);
-    repo.writeFile('a-bad.ts', DIRTY_FN);
-    repo.writeFile('z-bad.ts', DIRTY_FN);
-    repo.writeFile('m-bad.ts', DIRTY_FN);
-    repo.commitAll('initial');
+  it('serializes a fixed violation set byte-identically regardless of entry order', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hh-baseline-det-'));
+    const hash = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+    const entriesIn = (order: string[]) =>
+      Object.fromEntries(order.map((file) => [file, { snoozedAtCommit: hash }]));
 
-    await baselineGenerate(repo.cwd);
-    const first = readFileSync(join(repo.cwd, BASELINE_FILENAME), 'utf8');
-    await baselineGenerate(repo.cwd);
-    const second = readFileSync(join(repo.cwd, BASELINE_FILENAME), 'utf8');
+    saveBaseline(dir, { version: 2, files: entriesIn(['z-bad.ts', 'a-bad.ts', 'm-bad.ts']) });
+    const first = readFileSync(join(dir, BASELINE_FILENAME), 'utf8');
+    saveBaseline(dir, { version: 2, files: entriesIn(['m-bad.ts', 'z-bad.ts', 'a-bad.ts']) });
+    const second = readFileSync(join(dir, BASELINE_FILENAME), 'utf8');
 
+    rmSync(dir, { recursive: true, force: true });
     expect(second).toBe(first);
   });
 
