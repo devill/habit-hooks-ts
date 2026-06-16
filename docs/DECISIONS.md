@@ -295,3 +295,17 @@ phases (PR #13). Each call below is an _agent decision_.
   snoozed file look falsely clean, and shares one reaper (`reapBaseline`) with
   manual `baseline prune`. The pruned set is printed so the mutation is never
   silent. Reversible — auto-prune could move into `run()` or behind a flag.
+
+- **Python `oversized-file` via a line-count leaf sensor, threshold text-scanned
+  from config.** _(agent decision, #19)_ ruff 0.15 has no `C0302` port and
+  **rejects an unknown `max-module-lines` key under `[tool.ruff]`** (verified:
+  `unknown field max-module-lines`), so the locked decision's "ruff-config-style
+  key in the consumer's ruff config" cannot live inside `[tool.ruff]`. The
+  language-agnostic `lineCountSensor` emits `oversized-file` for files over the
+  threshold; the threshold is read by a no-TOML-parser **text scan** for
+  `max-module-lines = N` across the consumer's ruff config + `pyproject.toml`
+  (default 200, matching the TS `max-lines`). Consumers set it in a ruff-ignored
+  location such as `[tool.habit-hooks]` in `pyproject.toml`. It is **not** added
+  to `RUFF_RECOMMENDED`/the init scaffold, because recommending the key inside a
+  ruff table would break ruff. Reversible — a future ruff C0302 (or a TOML
+  parser) could relocate the threshold.

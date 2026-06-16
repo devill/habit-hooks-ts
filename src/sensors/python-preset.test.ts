@@ -24,17 +24,18 @@ describe('python preset', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('registers ruff, jscpd, and deptry sensors with their smell keys', () => {
-    const sensors = buildPythonPresetSensors({ notices: [] });
-    expect(sensors.map((s) => s.id)).toEqual(['ruff', 'jscpd', 'deptry']);
+  it('registers ruff, jscpd, deptry, and line-count sensors with their smell keys', () => {
+    const sensors = buildPythonPresetSensors({ notices: [], cwd: dir });
+    expect(sensors.map((s) => s.id)).toEqual(['ruff', 'jscpd', 'deptry', 'line-count']);
     expect(sensors[0]?.produces).toContain('too-many-parameters');
     expect(sensors[2]?.produces).toEqual(['unused-dependency']);
+    expect(sensors[3]?.produces).toEqual(['oversized-file']);
   });
 
   it.skipIf(!RUFF_AVAILABLE)('runs ruff and maps PLR0913/F841 to canonical smells with provenance', async () => {
     const file = join(dir, 'sample.py');
     writeFileSync(file, SAMPLE);
-    const ruff = buildPythonPresetSensors({ notices: [] })[0];
+    const ruff = buildPythonPresetSensors({ notices: [], cwd: dir })[0];
     if (ruff === undefined) throw new Error('expected ruff sensor');
 
     const issues = await ruff.run({ files: [file], cwd: dir, deps: [] });
@@ -49,7 +50,7 @@ describe('python preset', () => {
 
   it('emits a stderr notice and zero issues when ruff is not on PATH', async () => {
     const notices: string[] = [];
-    const ruff = buildPythonPresetSensors({ notices })[0];
+    const ruff = buildPythonPresetSensors({ notices, cwd: dir })[0];
     if (ruff === undefined) throw new Error('expected ruff sensor');
     const file = join(dir, 'a.py');
     writeFileSync(file, 'x = 1\n');
