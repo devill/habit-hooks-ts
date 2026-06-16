@@ -7,8 +7,18 @@ import {
   type ToolName,
 } from '../../detect/tool.js';
 import { hasPackageJsonKey } from '../../detect/package-json.js';
+import type { Language } from '../../config/schema.js';
 
 export type { ToolName };
+
+const TOOLS_BY_LANGUAGE: Record<Language, ToolName[]> = {
+  typescript: ['eslint', 'knip', 'jscpd'],
+  python: [],
+};
+
+export function toolsForLanguage(language: Language): ToolName[] {
+  return TOOLS_BY_LANGUAGE[language];
+}
 
 export interface ToolState {
   installed: boolean;

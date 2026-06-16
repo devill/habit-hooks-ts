@@ -66,6 +66,41 @@ describe('cli', () => {
     });
   });
 
+  describe('init command', () => {
+    let workDir: string;
+
+    beforeEach(() => {
+      workDir = mkdtempSync(join(tmpdir(), 'hh-cli-init-'));
+      writeFileSync(join(workDir, 'package.json'), JSON.stringify({ name: 'x' }));
+    });
+
+    afterEach(() => {
+      rmSync(workDir, { recursive: true, force: true });
+    });
+
+    it('exits 2 and lists supported languages for an unknown language', () => {
+      const result = spawnSync('node', [cliPath, 'init', 'rust'], {
+        cwd: workDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toMatch(/unsupported language 'rust'/);
+      expect(result.stderr).toMatch(/typescript, python/);
+      expect(existsSync(join(workDir, 'habit-hooks.config.js'))).toBe(false);
+    });
+
+    it('reports detection and writes nothing when no language is given', () => {
+      const result = spawnSync('node', [cliPath, 'init'], {
+        cwd: workDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Detected TypeScript');
+      expect(result.stdout).toContain('habit-hooks init typescript');
+      expect(existsSync(join(workDir, 'habit-hooks.config.js'))).toBe(false);
+    });
+  });
+
   describe('scope flags', () => {
     let repo: GitRepo;
 

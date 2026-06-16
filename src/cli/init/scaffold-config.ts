@@ -11,11 +11,25 @@ const CONFIG_FILENAMES = [
 
 const NEW_CONFIG_FILENAME = 'habit-hooks.config.js';
 
+export interface DetectedLanguage {
+  language: Language;
+  reason: string;
+}
+
 // init selects the language so only that language's sensors run. A Python
 // project is recognised by its manifest; everything else defaults to TypeScript.
+export function detectLanguageWithReason(cwd: string): DetectedLanguage {
+  if (existsSync(join(cwd, 'pyproject.toml'))) {
+    return { language: 'python', reason: 'found pyproject.toml' };
+  }
+  if (existsSync(join(cwd, 'setup.py'))) {
+    return { language: 'python', reason: 'found setup.py' };
+  }
+  return { language: 'typescript', reason: 'no Python manifest found' };
+}
+
 export function detectLanguage(cwd: string): Language {
-  if (existsSync(join(cwd, 'pyproject.toml')) || existsSync(join(cwd, 'setup.py'))) return 'python';
-  return 'typescript';
+  return detectLanguageWithReason(cwd).language;
 }
 
 function configTemplate(language: Language): string {
@@ -58,11 +72,11 @@ export function scaffoldFile(args: ScaffoldFileArgs): ScaffoldResult {
   return { path, created: true };
 }
 
-export function scaffoldConfig(cwd: string): ScaffoldResult {
+export function scaffoldConfig(cwd: string, language?: Language): ScaffoldResult {
   return scaffoldFile({
     cwd,
     candidates: CONFIG_FILENAMES,
     defaultName: NEW_CONFIG_FILENAME,
-    template: configTemplate(detectLanguage(cwd)),
+    template: configTemplate(language ?? detectLanguage(cwd)),
   });
 }

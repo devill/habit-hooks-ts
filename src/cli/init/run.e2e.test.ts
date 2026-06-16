@@ -27,8 +27,33 @@ describe('runInit end-to-end on real tmpdirs', () => {
     rmSync(d.cwd, { recursive: true, force: true });
   });
 
+  it('no language argument reports detection and writes nothing', async () => {
+    writeMinimalPackageJson(d.cwd);
+    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false) });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('Detected TypeScript');
+    expect(result.stdout).toContain('no Python manifest found');
+    expect(result.stdout).toContain('habit-hooks init typescript');
+    expect(readdirSync(d.cwd)).toEqual(['package.json']);
+  });
+
+  it('init python writes the config but no TypeScript tool configs', async () => {
+    writeMinimalPackageJson(d.cwd);
+    writeFileSync(join(d.cwd, 'pyproject.toml'), '[project]\nname = "x"\n');
+    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false), language: 'python' });
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(d.cwd, 'habit-hooks.config.js'), 'utf8')).toContain("language: 'python'");
+    expect(existsSync(join(d.cwd, 'eslint.config.js'))).toBe(false);
+    expect(existsSync(join(d.cwd, 'knip.json'))).toBe(false);
+    expect(existsSync(join(d.cwd, '.jscpd.json'))).toBe(false);
+  });
+
   it('dry-run on an empty dir writes nothing and announces planned writes', async () => {
-    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false), dryRun: true });
+    const result = await runInit(d.cwd, {
+      prompter: makeAutoPrompter(false),
+      dryRun: true,
+      language: 'typescript',
+    });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain(`[dry-run] would write ${join(d.cwd, 'habit-hooks.config.js')}`);
     expect(result.stdout).toContain(`[dry-run] would write ${join(d.cwd, '.habit-hooks-baseline.json')}`);
@@ -37,7 +62,7 @@ describe('runInit end-to-end on real tmpdirs', () => {
 
   it('scaffolds all configs on a dir with package.json (prompter answers default)', async () => {
     writeMinimalPackageJson(d.cwd);
-    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false), language: 'typescript' });
     expect(result.exitCode).toBe(0);
     expect(existsSync(join(d.cwd, 'habit-hooks.config.js'))).toBe(true);
     expect(existsSync(join(d.cwd, '.habit-hooks-baseline.json'))).toBe(true);
@@ -50,7 +75,7 @@ describe('runInit end-to-end on real tmpdirs', () => {
     writeMinimalPackageJson(d.cwd);
     const marker = '// existing-eslint-marker-9f3a\n';
     writeFileSync(join(d.cwd, 'eslint.config.js'), marker);
-    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false), language: 'typescript' });
     expect(result.exitCode).toBe(0);
     expect(readFileSync(join(d.cwd, 'eslint.config.js'), 'utf8')).toBe(marker);
     expect(result.stdout).toContain('eslint config already present');
@@ -64,7 +89,7 @@ describe('runInit end-to-end on real tmpdirs', () => {
     writeMinimalPackageJson(d.cwd);
     const marker = '{"_marker":"legacy-eslintrc-7b21"}\n';
     writeFileSync(join(d.cwd, '.eslintrc.json'), marker);
-    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInit(d.cwd, { prompter: makeAutoPrompter(false), language: 'typescript' });
     expect(result.exitCode).toBe(0);
     expect(readFileSync(join(d.cwd, '.eslintrc.json'), 'utf8')).toBe(marker);
     expect(existsSync(join(d.cwd, 'eslint.config.js'))).toBe(true);

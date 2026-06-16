@@ -25,7 +25,9 @@
     "lint": "eslint .",
     "format": "prettier -w .",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "prepublishOnly": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "habit-hooks": "habit-hooks",
+    "ci": "npm run lint && npm run test && npm run build && npm run habit-hooks"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

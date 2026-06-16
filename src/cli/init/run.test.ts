@@ -10,6 +10,12 @@ interface Setup {
   home: string;
 }
 
+type RunInitOpts = Parameters<typeof runInit>[1];
+
+function runInitTs(cwd: string, extra: Omit<RunInitOpts, 'language'>): ReturnType<typeof runInit> {
+  return runInit(cwd, { ...extra, language: 'typescript' });
+}
+
 function makeSetup(): Setup {
   return {
     cwd: mkdtempSync(join(tmpdir(), 'hh-init-')),
@@ -46,7 +52,7 @@ describe('runInit', () => {
 
   it('scaffolds tool configs, habit-hooks config, and baseline on a fresh dir', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.exitCode).toBe(0);
     expect(existsSync(join(s.cwd, 'eslint.config.js'))).toBe(true);
     expect(existsSync(join(s.cwd, 'knip.json'))).toBe(true);
@@ -57,7 +63,7 @@ describe('runInit', () => {
 
   it('writes a slim v2 habit-hooks config with scope only', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     const contents = readFileSync(join(s.cwd, 'habit-hooks.config.js'), 'utf8');
     expect(contents).toContain('scope');
     expect(contents).toContain('branchBase');
@@ -69,7 +75,7 @@ describe('runInit', () => {
   it('does not overwrite an existing habit-hooks config and keeps going', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
     writeFileSync(join(s.cwd, 'habit-hooks.config.js'), 'export default {};\n');
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('habit-hooks config already present');
     expect(readFileSync(join(s.cwd, 'habit-hooks.config.js'), 'utf8')).toBe('export default {};\n');
@@ -78,7 +84,7 @@ describe('runInit', () => {
   it('does not overwrite an existing eslint config', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
     writeFileSync(join(s.cwd, 'eslint.config.js'), '// existing\n');
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.exitCode).toBe(0);
     expect(readFileSync(join(s.cwd, 'eslint.config.js'), 'utf8')).toBe('// existing\n');
     expect(result.stdout).toContain('eslint config already present (binary missing)');
@@ -86,7 +92,7 @@ describe('runInit', () => {
 
   it('prints an install command for tools missing from node_modules', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.stdout).toContain('To install missing tools, run:');
     expect(result.stdout).toContain('npm install --save-dev');
     expect(result.stdout).toContain('eslint');
@@ -97,7 +103,7 @@ describe('runInit', () => {
   it('picks pnpm when pnpm-lock.yaml is present', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
     writeFileSync(join(s.cwd, 'pnpm-lock.yaml'), '');
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.stdout).toContain('pnpm add -D');
   });
 
@@ -109,7 +115,7 @@ describe('runInit', () => {
     const pkgDir = join(s.cwd, 'node_modules', 'eslint');
     mkdirSync(pkgDir, { recursive: true });
     writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: 'eslint' }));
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     const tail = result.stdout.split('To install missing tools, run:')[1] ?? '';
     const installCommand = tail.split('\n\n')[0] ?? '';
     expect(installCommand).not.toContain('eslint');
@@ -118,7 +124,7 @@ describe('runInit', () => {
 
   it('--yes adds habit-hooks script to package.json', async () => {
     writePackageJson(s.cwd, { name: 'demo', scripts: { lint: 'eslint .' } });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     expect(result.exitCode).toBe(0);
     expect(readScripts(s.cwd)?.['habit-hooks']).toBe('habit-hooks');
   });
@@ -128,7 +134,7 @@ describe('runInit', () => {
       name: 'demo',
       scripts: { 'habit-hooks': 'echo something else' },
     });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("refusing to replace 'habit-hooks'");
     expect(readScripts(s.cwd)?.['habit-hooks']).toBe('echo something else');
@@ -139,7 +145,7 @@ describe('runInit', () => {
       name: 'demo',
       scripts: { lint: 'eslint .', test: 'vitest run' },
     });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     expect(result.exitCode).toBe(0);
     expect(readScripts(s.cwd)?.ci).toBe('npm run lint && npm run test && npm run habit-hooks');
   });
@@ -149,14 +155,14 @@ describe('runInit', () => {
       name: 'demo',
       scripts: { lint: 'eslint .', ci: 'something custom' },
     });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("refusing to replace 'ci'");
   });
 
   it('takes per-prompt defaults: Y for safe additions, N for destructive ones', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.exitCode).toBe(0);
     const scripts = readScripts(s.cwd);
     expect(scripts?.['habit-hooks']).toBe('habit-hooks');
@@ -166,7 +172,7 @@ describe('runInit', () => {
 
   it('emits the agent snippet on stdout', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.stdout).toContain('## Habit Hooks');
     expect(result.stdout).toContain('npm run ci');
     expect(result.stdout).toContain('habit-hooks-review');
@@ -176,7 +182,7 @@ describe('runInit', () => {
   it('--yes installs a pre-commit hook when .git exists', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
     mkdirSync(join(s.cwd, '.git', 'hooks'), { recursive: true });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     const hookPath = join(s.cwd, '.git', 'hooks', 'pre-commit');
     expect(result.exitCode).toBe(0);
     expect(existsSync(hookPath)).toBe(true);
@@ -188,7 +194,7 @@ describe('runInit', () => {
     mkdirSync(join(s.cwd, '.git', 'hooks'), { recursive: true });
     const hookPath = join(s.cwd, '.git', 'hooks', 'pre-commit');
     writeFileSync(hookPath, '#!/bin/sh\necho something\n');
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('left untouched');
     expect(readFileSync(hookPath, 'utf8')).toBe('#!/bin/sh\necho something\n');
@@ -204,7 +210,7 @@ describe('runInit', () => {
       },
       close() {},
     };
-    const result = await runInit(s.cwd, { prompter });
+    const result = await runInitTs(s.cwd, { prompter });
     expect(result.exitCode).toBe(0);
     expect(asked).toContain('Install the bundled habit-hooks skills into ~/.claude/skills/?');
     expect(result.stdout).toContain('installed habit-hooks-review at');
@@ -219,7 +225,7 @@ describe('runInit', () => {
 
   it('--dry-run does not write any files', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false), dryRun: true });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false), dryRun: true });
     expect(result.exitCode).toBe(0);
     expect(existsSync(join(s.cwd, 'eslint.config.js'))).toBe(false);
     expect(existsSync(join(s.cwd, 'knip.json'))).toBe(false);
@@ -231,28 +237,28 @@ describe('runInit', () => {
 
   it('--dry-run still prints the install command', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false), dryRun: true });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false), dryRun: true });
     expect(result.stdout).toContain('To install missing tools, run:');
   });
 
   it('--dry-run leaves an existing package.json byte-identical', async () => {
     writePackageJson(s.cwd, { name: 'demo', scripts: { lint: 'eslint .' } });
     const before = readFileSync(join(s.cwd, 'package.json'), 'utf8');
-    await runInit(s.cwd, { prompter: makeAutoPrompter(true), dryRun: true });
+    await runInitTs(s.cwd, { prompter: makeAutoPrompter(true), dryRun: true });
     const after = readFileSync(join(s.cwd, 'package.json'), 'utf8');
     expect(after).toBe(before);
   });
 
   it('prints a starter note when knip.json is freshly scaffolded', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.stdout).toContain('knip.json written with starter entry points');
   });
 
   it('does not print the knip starter note when knip.json already exists', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
     writeFileSync(join(s.cwd, 'knip.json'), '{"entry":["custom.ts"]}');
-    const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+    const result = await runInitTs(s.cwd, { prompter: makeAutoPrompter(false) });
     expect(result.stdout).not.toContain('knip.json written with starter entry points');
   });
 
@@ -260,7 +266,7 @@ describe('runInit', () => {
     writePackageJson(s.cwd, { name: 'demo' });
     writeFileSync(join(s.cwd, 'pnpm-lock.yaml'), '');
     mkdirSync(join(s.cwd, '.git', 'hooks'), { recursive: true });
-    await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     const body = readFileSync(join(s.cwd, '.git', 'hooks', 'pre-commit'), 'utf8');
     expect(body).toContain('pnpm run habit-hooks');
   });
@@ -269,7 +275,7 @@ describe('runInit', () => {
     writePackageJson(s.cwd, { name: 'demo' });
     writeFileSync(join(s.cwd, 'yarn.lock'), '');
     mkdirSync(join(s.cwd, '.git', 'hooks'), { recursive: true });
-    await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     const body = readFileSync(join(s.cwd, '.git', 'hooks', 'pre-commit'), 'utf8');
     expect(body).toContain('yarn run habit-hooks');
   });
@@ -277,19 +283,77 @@ describe('runInit', () => {
   it('writes the pre-commit hook with npm when no lockfile is present', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
     mkdirSync(join(s.cwd, '.git', 'hooks'), { recursive: true });
-    await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     const body = readFileSync(join(s.cwd, '.git', 'hooks', 'pre-commit'), 'utf8');
     expect(body).toContain('npm run habit-hooks');
   });
 
   it('re-running on a scaffolded dir leaves files untouched', async () => {
     writePackageJson(s.cwd, { name: 'demo' });
-    await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     const first = readFileSync(join(s.cwd, 'eslint.config.js'), 'utf8');
-    const second = await runInit(s.cwd, { prompter: makeAutoPrompter(true) });
+    const second = await runInitTs(s.cwd, { prompter: makeAutoPrompter(true) });
     expect(second.exitCode).toBe(0);
     expect(readFileSync(join(s.cwd, 'eslint.config.js'), 'utf8')).toBe(first);
     expect(second.stdout).toContain('eslint config already present');
     expect(second.stdout).toContain('habit-hooks config already present');
+  });
+
+  describe('no language argument (report-only)', () => {
+    it('reports detected python and writes nothing', async () => {
+      writePackageJson(s.cwd, { name: 'demo' });
+      writeFileSync(join(s.cwd, 'pyproject.toml'), '[project]\nname = "x"\n');
+      const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Detected Python');
+      expect(result.stdout).toContain('found pyproject.toml');
+      expect(result.stdout).toContain('habit-hooks init python');
+      expect(result.stdout).toContain('habit-hooks init <language>');
+      expect(existsSync(join(s.cwd, 'eslint.config.js'))).toBe(false);
+      expect(existsSync(join(s.cwd, 'habit-hooks.config.js'))).toBe(false);
+      expect(existsSync(join(s.cwd, '.habit-hooks-baseline.json'))).toBe(false);
+    });
+
+    it('reports detected typescript on a plain dir and writes nothing', async () => {
+      writePackageJson(s.cwd, { name: 'demo' });
+      const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Detected TypeScript');
+      expect(result.stdout).toContain('no Python manifest found');
+      expect(result.stdout).toContain('habit-hooks init typescript');
+      expect(existsSync(join(s.cwd, 'eslint.config.js'))).toBe(false);
+      expect(existsSync(join(s.cwd, 'habit-hooks.config.js'))).toBe(false);
+    });
+  });
+
+  describe('explicit language', () => {
+    it('init python writes config with language python and no TS tooling', async () => {
+      writePackageJson(s.cwd, { name: 'demo' });
+      writeFileSync(join(s.cwd, 'pyproject.toml'), '[project]\nname = "x"\n');
+      const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false), language: 'python' });
+      expect(result.exitCode).toBe(0);
+      expect(readFileSync(join(s.cwd, 'habit-hooks.config.js'), 'utf8')).toContain(
+        "language: 'python'",
+      );
+      expect(existsSync(join(s.cwd, 'eslint.config.js'))).toBe(false);
+      expect(existsSync(join(s.cwd, 'knip.json'))).toBe(false);
+      expect(existsSync(join(s.cwd, '.jscpd.json'))).toBe(false);
+      expect(result.stdout).not.toContain('To install missing tools, run:');
+    });
+
+    it('init typescript scaffolds tool configs as before', async () => {
+      writePackageJson(s.cwd, { name: 'demo' });
+      const result = await runInit(s.cwd, {
+        prompter: makeAutoPrompter(false),
+        language: 'typescript',
+      });
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(join(s.cwd, 'eslint.config.js'))).toBe(true);
+      expect(existsSync(join(s.cwd, 'knip.json'))).toBe(true);
+      expect(existsSync(join(s.cwd, '.jscpd.json'))).toBe(true);
+      expect(readFileSync(join(s.cwd, 'habit-hooks.config.js'), 'utf8')).toContain(
+        "language: 'typescript'",
+      );
+    });
   });
 });
