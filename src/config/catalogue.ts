@@ -1,9 +1,7 @@
 import type { Rule } from '../types.js';
 
-// The canonical, tool-independent smell catalogue (docs/smell-vocabulary.md):
-// default severity, title, and description per smell. Sensors translate raw tool
-// output into these keys; a rule here makes the smell coached and lets its
-// producing sensor activate. `source`/`sourceRuleId` are legacy provenance hints.
+// The canonical, tool-independent smell catalogue (docs/smell-vocabulary.md): a
+// rule here makes the smell coached and activates its producing sensor.
 
 const tier1Rules: Rule[] = [
   {
@@ -132,6 +130,14 @@ const customRules: Rule[] = [
     title: 'Non-essential comment',
     description: 'Comments indicate code that is not self-documenting.',
   },
+  {
+    id: 'needs-extraction',
+    source: 'custom',
+    severity: 'enforced',
+    changedFilesOnly: true,
+    title: 'Needs extraction',
+    description: 'A file that is both oversized and duplicated wants the shared block extracted.',
+  },
 ];
 
 const jscpdRules: Rule[] = [
@@ -145,8 +151,7 @@ const jscpdRules: Rule[] = [
   },
 ];
 
-// The "unused" family: knip emits these for TypeScript; deptry emits
-// unused-dependency and ruff emits unused-import for Python.
+// The "unused" family: knip (TS), deptry (unused-dependency), ruff (unused-import).
 const unusedRules: Rule[] = [
   {
     id: 'unused-class-member',

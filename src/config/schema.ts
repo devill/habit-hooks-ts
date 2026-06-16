@@ -30,6 +30,13 @@ export interface CommentCheckConfig {
   maxBlockChars?: number;
 }
 
+// When `replace` is true, a `needs-extraction` finding suppresses its two input
+// smells (oversized-file, duplicated-code) for that file. Default (augment)
+// shows all three.
+export interface NeedsExtractionConfig {
+  replace?: boolean;
+}
+
 export type Language = 'typescript' | 'python';
 
 export interface HabitHooksConfig {
@@ -42,6 +49,7 @@ export interface HabitHooksConfig {
   rules?: Record<string, RuleOverride | RuleDefinition>;
   scope?: ScopeConfig;
   commentCheck?: CommentCheckConfig;
+  needsExtraction?: NeedsExtractionConfig;
 }
 
 export function isRuleDefinition(

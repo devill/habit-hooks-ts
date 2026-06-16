@@ -3,6 +3,7 @@ import type {
   CommentCheckConfig,
   HabitHooksConfig,
   Language,
+  NeedsExtractionConfig,
   RuleDefinition,
   RuleOverride,
   ScopeConfig,
@@ -126,6 +127,13 @@ function validateLanguage(value: unknown): Language | undefined {
   return value as Language;
 }
 
+function validateNeedsExtraction(value: unknown): NeedsExtractionConfig | undefined {
+  if (value === undefined) return undefined;
+  if (!isPlainObject(value)) fail('needsExtraction', 'an object');
+  validateOptionalBoolean(value.replace, 'needsExtraction.replace');
+  return value as NeedsExtractionConfig;
+}
+
 interface ValidatedParts {
   prompts?: string;
   language: Language | undefined;
@@ -133,6 +141,7 @@ interface ValidatedParts {
   rules: HabitHooksConfig['rules'];
   scope: ScopeConfig | undefined;
   commentCheck: CommentCheckConfig | undefined;
+  needsExtraction: NeedsExtractionConfig | undefined;
 }
 
 function assembleConfig(parts: ValidatedParts): HabitHooksConfig {
@@ -143,18 +152,24 @@ function assembleConfig(parts: ValidatedParts): HabitHooksConfig {
   if (parts.rules !== undefined) config.rules = parts.rules;
   if (parts.scope !== undefined) config.scope = parts.scope;
   if (parts.commentCheck !== undefined) config.commentCheck = parts.commentCheck;
+  if (parts.needsExtraction !== undefined) config.needsExtraction = parts.needsExtraction;
   return config;
 }
 
-export function validateConfig(value: unknown): HabitHooksConfig {
-  if (!isPlainObject(value)) fail('config', 'an object');
-  validateOptionalString(value.prompts, 'prompts');
-  return assembleConfig({
+function validateParts(value: Record<string, unknown>): ValidatedParts {
+  return {
     prompts: typeof value.prompts === 'string' ? value.prompts : undefined,
     language: validateLanguage(value.language),
     smells: validateEntryMap(value.smells, 'smells'),
     rules: validateEntryMap(value.rules, 'rules'),
     scope: validateScope(value.scope),
     commentCheck: validateCommentCheck(value.commentCheck),
-  });
+    needsExtraction: validateNeedsExtraction(value.needsExtraction),
+  };
+}
+
+export function validateConfig(value: unknown): HabitHooksConfig {
+  if (!isPlainObject(value)) fail('config', 'an object');
+  validateOptionalString(value.prompts, 'prompts');
+  return assembleConfig(validateParts(value));
 }
