@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
-import { isSpawnSkip, parseJsonStdout, spawnWrapped } from '../wrap/run.js';
+import { isSpawnSkip, parseJsonStdout, skipOutcome, spawnWrapped } from '../wrap/run.js';
 import { buildKnipArgs, consumerKnipMajor, resolveKnipBin } from './knip-resolve.js';
 import {
   KNOWN_KEYS,
@@ -149,7 +149,7 @@ function hasKnipConfig(cwd: string): boolean {
 
 async function runKnip(resolution: BinResolution, cwd: string, notices: string[]): Promise<CheckOutcome> {
   const result = await spawnWrapped({ tool: 'knip', resolution, cwd, args: buildKnipArgs(resolution, cwd) });
-  if (isSpawnSkip(result)) return emptyOutcome([...notices, result.skipWarning]);
+  if (isSpawnSkip(result)) return skipOutcome(result, notices);
   const report = parseJsonStdout<KnipReport>(result.stdout, '{');
   if (report === null) return emptyOutcome([...notices, exitFailureWarning(cwd, result.exitCode, result.stderr)]);
   return { violations: reportToViolations(report, cwd), stderr: notices };

@@ -8,6 +8,7 @@ import {
   firstLine,
   isSpawnFailure,
   noticesFor,
+  spawnFailureOutcome,
   spawnFailureWarning,
   type BinResolution,
 } from '../wrap/notices.js';
@@ -134,7 +135,7 @@ async function runEslint(resolution: BinResolution, cwd: string, files: string[]
   const notices = noticesFor('eslint', resolution, cwd);
   const result = await executeEslint(resolution, cwd, files);
   const parsed = tryParseJson(result.stdout);
-  if (isSpawnFailure(result)) return emptyOutcome([...notices, spawnFailureWarning('eslint', cwd, result.warnings)]);
+  if (isSpawnFailure(result)) return spawnFailureOutcome(notices, spawnFailureWarning('eslint', cwd, result.warnings));
   if (isConfigError(result, parsed)) return emptyOutcome([...notices, ...failureNotices(cwd, result)]);
   return { violations: parseEslintJson(result.stdout), stderr: notices };
 }

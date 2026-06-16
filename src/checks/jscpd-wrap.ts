@@ -6,7 +6,7 @@ import { type ShellResult } from '../wrap/shell.js';
 import { detectTool } from '../detect/tool.js';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
-import { isSpawnSkip, spawnWrapped } from '../wrap/run.js';
+import { isSpawnSkip, skipOutcome, spawnWrapped } from '../wrap/run.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
 const require = createRequire(import.meta.url);
@@ -151,7 +151,7 @@ function missingReportOutcome(inputs: RunInputs, result: ShellResult): CheckOutc
 async function runOnce(inputs: RunInputs, reportDir: string): Promise<CheckOutcome> {
   const { resolution, cwd } = inputs;
   const result = await spawnWrapped({ tool: 'jscpd', resolution, cwd, args: buildArgs(reportDir) });
-  if (isSpawnSkip(result)) return emptyOutcome([...inputs.notices, result.skipWarning]);
+  if (isSpawnSkip(result)) return skipOutcome(result, inputs.notices);
   const report = tryReadReport(reportDir);
   if (report === null) return missingReportOutcome(inputs, result);
   return { violations: reportToViolations(report, inputs.scope, inputs.cwd), stderr: inputs.notices };
