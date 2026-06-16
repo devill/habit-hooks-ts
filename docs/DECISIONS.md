@@ -318,3 +318,17 @@ phases (PR #13). Each call below is an _agent decision_.
   while every successful sensor's output still renders. The failure message stays
   in `notices` too, so display is unchanged. Reversible — the sink could collapse
   back to a bare notices array if the policy were reverted.
+
+- **`needs-extraction` is a real multi sensor; replace-mode runs in the sensor
+  stage.** _(agent decision, #17)_ The composite (`oversized-file` +
+  `duplicated-code` in one file → `needs-extraction`, enforced) is a genuine
+  multi sensor using `dependsOn`/`ctx.deps`; the mapper stays a pure single-smell
+  function. The augment-vs-replace switch (`needsExtraction.replace`, default
+  augment) is applied by `applyReplaceMode` in the sensor module, called from
+  `detect()` on the merged bag before the mapper — so combination logic stays in
+  the sensor layer. The composite is wired into the **TS preset only** for now,
+  because on `main` the Python preset has no `oversized-file` producer (that is
+  #19); `satisfiableSensors` drops a composite whose dependency producers were
+  gated out, so a config that disables an input can't crash the run. The
+  catalogue entry lives in `customRules` (source `custom`) to stay under the
+  200-line cap.

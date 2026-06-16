@@ -3,6 +3,7 @@ import { commentCheck } from '../checks/comment-check.js';
 import { jscpdWrap } from '../checks/jscpd-wrap.js';
 import { knipWrap } from '../checks/knip-wrap.js';
 import type { SensorSink } from '../wrap/notices.js';
+import { needsExtractionSensor } from './needs-extraction.js';
 import type { Check, CheckOutcome, Rule, Violation } from '../types.js';
 import type { Issue, Sensor } from './types.js';
 
@@ -76,8 +77,9 @@ function commentSensor(input: PresetInput): Sensor {
   return checkLeafSensor({ check: commentCheck, produces: ['non-essential-comment'], sink: input.sink, rules });
 }
 
-// The TypeScript/JavaScript preset: four leaf sensors over eslint, ts-morph
-// comments, jscpd, and knip.
+// The TypeScript/JavaScript preset: leaf sensors over eslint, ts-morph comments,
+// jscpd, and knip, plus the needs-extraction composite over oversized-file +
+// duplicated-code.
 export function buildPresetSensors(input: PresetInput): Sensor[] {
   const { sink } = input;
   return [
@@ -85,5 +87,6 @@ export function buildPresetSensors(input: PresetInput): Sensor[] {
     commentSensor(input),
     checkLeafSensor({ check: jscpdWrap, produces: ['duplicated-code'], sink }),
     checkLeafSensor({ check: knipWrap, produces: KNIP_PRODUCES, sink }),
+    needsExtractionSensor(),
   ];
 }

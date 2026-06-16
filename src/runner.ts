@@ -9,7 +9,8 @@ import { resolveScope, type ResolvedScope, type ScopeFlags, type ScopeMode } fro
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
 import { createSnoozeIndex, type SnoozeIndex } from './baseline/snooze-index.js';
-import { SensorRunner } from './sensors/runner.js';
+import { SensorRunner, satisfiableSensors } from './sensors/runner.js';
+import { applyReplaceMode } from './sensors/needs-extraction.js';
 import { buildPresetSensors, issueToViolation, violationToIssue } from './sensors/preset.js';
 import { buildPythonPresetSensors } from './sensors/python-preset.js';
 import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.js';
@@ -44,6 +45,7 @@ interface RunContext {
   language: Language;
   promptsDir?: string;
   configWarnings: string[];
+  needsExtractionReplace: boolean;
 }
 
 function applyScopeToRule(rule: Rule, files: string[], scope: ResolvedScope): string[] {
@@ -97,7 +99,8 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   const promptsDir = resolvePromptsDir(config, configDir);
   const configWarnings = config.rules !== undefined ? [RULES_DEPRECATION] : [];
   const snoozeIndex = createSnoozeIndex(cwd);
-  return { ctx: { cwd, files, scope, baseline, snoozeIndex, language, promptsDir, configWarnings }, rules };
+  const needsExtractionReplace = config.needsExtraction?.replace === true;
+  return { ctx: { cwd, files, scope, baseline, snoozeIndex, language, promptsDir, configWarnings, needsExtractionReplace }, rules };
 }
 
 // A sensor runs only when at least one smell it produces has an active rule
@@ -124,9 +127,10 @@ async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Vio
   const sink: SensorSink = { notices: [], failures: [] };
   const rulesById = new Map(rules.map((r) => [r.id, r] as const));
   const all = presetSensors(ctx, rulesById, sink);
-  const active = all.filter((sensor) => sensorActive(sensor, rulesById, ctx));
+  const active = satisfiableSensors(all.filter((sensor) => sensorActive(sensor, rulesById, ctx)));
   const issues = await new SensorRunner(active).run({ files: ctx.files, cwd: ctx.cwd });
-  return { violations: issues.map(issueToViolation), sink };
+  const combined = applyReplaceMode(issues, ctx.needsExtractionReplace);
+  return { violations: combined.map(issueToViolation), sink };
 }
 
 // Keep a violation when its smell has no rule (uncoached), or its file is not a

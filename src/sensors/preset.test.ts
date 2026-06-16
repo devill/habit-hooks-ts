@@ -47,13 +47,16 @@ describe('issueToViolation', () => {
 });
 
 describe('buildPresetSensors', () => {
-  it('registers the four TS preset sensors with their smell keys', () => {
+  it('registers the TS preset sensors (incl. the needs-extraction composite) with their smell keys', () => {
     const sensors = buildPresetSensors({ sink: { notices: [], failures: [] } });
-    expect(sensors.map((s) => s.id)).toEqual(['eslint', 'comment', 'jscpd', 'knip']);
+    expect(sensors.map((s) => s.id)).toEqual(['eslint', 'comment', 'jscpd', 'knip', 'needs-extraction']);
     const eslint = sensors.find((s) => s.id === 'eslint');
     expect(eslint?.produces).toContain('too-many-parameters');
     expect(eslint?.produces).toContain('parse-error');
     expect(sensors.find((s) => s.id === 'jscpd')?.produces).toEqual(['duplicated-code']);
     expect(sensors.find((s) => s.id === 'comment')?.produces).toEqual(['non-essential-comment']);
+    const composite = sensors.find((s) => s.id === 'needs-extraction');
+    expect(composite?.produces).toEqual(['needs-extraction']);
+    expect(composite?.dependsOn).toEqual(['oversized-file', 'duplicated-code']);
   });
 });

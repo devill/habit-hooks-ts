@@ -38,6 +38,7 @@ exits 0. The mapper config can override it per project.
 | `redundant-type-annotation` | Redundant type annotation             | enforced         |
 | `non-essential-comment`     | Non-essential comment                 | suggested        |
 | `duplicated-code`           | Duplicated code                       | suggested        |
+| `needs-extraction`          | Needs extraction                      | enforced         |
 | `unused-class-member`       | Unused class member                   | enforced         |
 | `unused-file`               | Unused file                           | enforced         |
 | `unused-export`             | Unused export                         | enforced         |
@@ -97,6 +98,18 @@ the Python preset. `oversized-file` has no clean ruff rule, so the Python preset
 emits it from a language-agnostic line-count sensor whose threshold
 (`max-module-lines`, default 200) is read from the consumer's config text (see
 `DECISIONS.md`).
+
+## Combinations
+
+Some smells are **composite**: derived by a multi sensor from the co-occurrence
+of others, not from a tool (docs/architecture.md "Combinations"). `needs-extraction`
+fires when a single file has both `oversized-file` **and** `duplicated-code`. By
+default it **augments** (all three smells show); `needsExtraction.replace: true`
+suppresses the two input smells for that file so only `needs-extraction` remains.
+
+| Composite          | Derived from                          | Smell key          |
+|--------------------|---------------------------------------|--------------------|
+| same-file overlap  | `oversized-file` + `duplicated-code`  | `needs-extraction` |
 
 ## Uncoached smells
 
