@@ -83,7 +83,7 @@ describe('runner.run sensor gating', () => {
     writeFileSync(join(dir, 'a.ts'), LONG_COMMENT);
     writeFileSync(
       join(dir, 'habit-hooks.config.json'),
-      JSON.stringify({ rules: { 'non-essential-comment': { disabled: true } } }),
+      JSON.stringify({ smells: { 'non-essential-comment': { disabled: true } } }),
     );
 
     const result = await run(dir);
@@ -101,7 +101,7 @@ describe('runner.run with scope', () => {
 
   function writeConfig(cwd: string, changedFilesOnly: boolean): void {
     const cfg = {
-      rules: {
+      smells: {
         'too-many-parameters': { changedFilesOnly },
         'oversized-function': { disabled: true },
       },
@@ -155,7 +155,7 @@ describe('runner.run with scope', () => {
     repo = createGitRepo({ withEslint: true });
     const cfg = {
       scope: { onlyChangedFiles: true },
-      rules: {
+      smells: {
         'too-many-parameters': { changedFilesOnly: true },
         'oversized-function': { disabled: true },
       },
@@ -179,7 +179,7 @@ describe('runner.run with baseline', () => {
 
   function writeMaxParamsConfig(cwd: string): void {
     const cfg = {
-      rules: { 'oversized-function': { disabled: true } },
+      smells: { 'oversized-function': { disabled: true } },
     };
     writeFileSync(join(cwd, 'habit-hooks.config.json'), JSON.stringify(cfg));
   }

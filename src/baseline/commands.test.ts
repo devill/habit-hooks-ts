@@ -23,7 +23,7 @@ const CLEAN_FN = `export function add(a: number, b: number): number {
 `;
 
 function writeConfig(cwd: string): void {
-  const cfg = { rules: { 'oversized-function': { disabled: true } } };
+  const cfg = { smells: { 'oversized-function': { disabled: true } } };
   writeFileSync(join(cwd, 'habit-hooks.config.json'), JSON.stringify(cfg));
 }
 
@@ -68,7 +68,7 @@ describe('baseline generate', () => {
     repo = createGitRepo({ withEslint: true });
     const cfg = {
       scope: { onlyChangedFiles: true },
-      rules: {
+      smells: {
         'too-many-parameters': { changedFilesOnly: true },
         'oversized-function': { disabled: true },
       },
