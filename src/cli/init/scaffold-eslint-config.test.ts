@@ -38,6 +38,14 @@ describe('scaffoldEslintConfig', () => {
     expect(contents).toContain('max: 200');
   });
 
+  it('exempts test files from the size rules, matching TEST_FILE_EXCLUDE', () => {
+    scaffoldEslintConfig(cwd);
+    const contents = readFileSync(join(cwd, 'eslint.config.js'), 'utf8');
+    expect(contents).toContain("files: ['**/*.test.ts', '**/*.spec.ts', 'tests/**']");
+    expect(contents).toContain("'max-lines-per-function': 'off'");
+    expect(contents).toContain("'max-lines': 'off'");
+  });
+
   it('does not overwrite an existing eslint.config.mjs', () => {
     const path = join(cwd, 'eslint.config.mjs');
     writeFileSync(path, 'export default [];\n');
