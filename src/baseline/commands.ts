@@ -11,6 +11,7 @@ import {
   type BaselineFile,
 } from './store.js';
 import { toRepoRelative } from './filter.js';
+import { reapBaseline } from './reap.js';
 
 export interface CommandResult {
   stdout: string;
@@ -118,21 +119,12 @@ export function baselineForget(cwd: string, paths: string[]): CommandResult {
   return ok(`baseline forget: removed ${String(removed)} entry/entries\n`);
 }
 
-function shouldKeepEntry(cwd: string, relPath: string, violating: Set<string>): boolean {
-  if (!existsSync(join(cwd, relPath))) return false;
-  return violating.has(relPath);
-}
-
 export async function baselinePrune(cwd: string): Promise<CommandResult> {
   const baseline = loadBaseline(cwd);
   const violating = new Set(await collectViolatingFiles(cwd));
-  const kept = Object.entries(baseline.files).filter(([rel]) =>
-    shouldKeepEntry(cwd, rel, violating),
-  );
-  const files = Object.fromEntries(kept) as Record<string, BaselineEntry>;
-  const removed = Object.keys(baseline.files).length - kept.length;
+  const { files, pruned } = reapBaseline(cwd, baseline, violating);
   saveBaseline(cwd, { version: BASELINE_VERSION, files });
-  return ok(`baseline prune: removed ${String(removed)} entry/entries\n`);
+  return ok(`baseline prune: removed ${String(pruned.length)} entry/entries\n`);
 }
 
 type EntryState = 'current' | 'stale-changed' | 'stale-missing';
