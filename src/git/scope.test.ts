@@ -8,6 +8,7 @@ import {
   getLastNCommitsChanges,
   getMergeBase,
   getUncommittedFiles,
+  UnsafeRefError,
 } from './scope.js';
 import { createGitRepo, type GitRepo } from '../../tests/helpers/git.js';
 
@@ -74,6 +75,22 @@ describe('git/scope', () => {
       expect(lastTwo.sort()).toEqual(
         [join(repo.cwd, 'b.ts'), join(repo.cwd, 'c.ts')].sort(),
       );
+    });
+  });
+
+  describe('option-injection guard', () => {
+    it('rejects a hash that looks like a git option instead of running diff', () => {
+      repo.writeFile('a.ts', 'export const a = 1;\n');
+      repo.commitAll('first');
+
+      expect(() => getChangedVsCommit(repo.cwd, '--output=/tmp/hh-pwn')).toThrow(UnsafeRefError);
+    });
+
+    it('rejects a merge-base ref that looks like a git option', () => {
+      repo.writeFile('a.ts', 'export const a = 1;\n');
+      repo.commitAll('first');
+
+      expect(() => getMergeBase(repo.cwd, '--output=/tmp/hh-pwn')).toThrow(UnsafeRefError);
     });
   });
 

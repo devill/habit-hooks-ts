@@ -1,6 +1,22 @@
 import { resolve } from 'node:path';
 import { gitExec } from './exec.js';
 
+export class UnsafeRefError extends Error {
+  constructor(ref: string) {
+    super(`refusing git revision that looks like an option: ${ref}`);
+    this.name = 'UnsafeRefError';
+  }
+}
+
+// A revision that begins with `-` (from a committed config's branchBase or a
+// `--since` value) would be parsed by git as an option, not a commit — e.g.
+// `git diff --name-only --output=<file> HEAD` writes an arbitrary file. Reject
+// such refs before they reach git.
+function safeRef(ref: string): string {
+  if (ref.startsWith('-')) throw new UnsafeRefError(ref);
+  return ref;
+}
+
 function parseLines(stdout: string): string[] {
   return stdout
     .split('\n')
@@ -35,7 +51,7 @@ export function getUncommittedFiles(cwd: string): string[] {
 }
 
 export function getChangedVsCommit(cwd: string, hash: string): string[] {
-  const stdout = gitExec(['diff', '--name-only', hash, 'HEAD'], cwd);
+  const stdout = gitExec(['diff', '--name-only', safeRef(hash), 'HEAD', '--'], cwd);
   return toAbsolute(cwd, parseLines(stdout));
 }
 
@@ -44,7 +60,7 @@ export function getLastNCommitsChanges(cwd: string, n: number): string[] {
 }
 
 export function getMergeBase(cwd: string, base: string): string {
-  return gitExec(['merge-base', 'HEAD', base], cwd).trim();
+  return gitExec(['merge-base', 'HEAD', safeRef(base)], cwd).trim();
 }
 
 export function getChangedVsBranch(cwd: string, base: string): string[] {
