@@ -103,4 +103,18 @@ describe('detectTool', () => {
     expect(result).not.toBeNull();
     expect(result?.configPath).toBeNull();
   });
+
+  it('rejects a package.json#bin path that escapes the package dir (no RCE)', () => {
+    const pkgDir = join(cwd, 'node_modules', 'eslint');
+    mkdirSync(pkgDir, { recursive: true });
+    writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: 'eslint', bin: { eslint: '../../evil.js' } }));
+    writeFileSync(join(cwd, 'evil.js'), 'console.log("pwned")\n');
+    writeFileSync(join(cwd, 'eslint.config.js'), 'export default [];\n');
+
+    const result = detectTool(cwd, 'eslint');
+
+    // bin is out of bounds and there is no .bin fallback, so the tool is undetected
+    // rather than resolving to the attacker-planted file.
+    expect(result).toBeNull();
+  });
 });

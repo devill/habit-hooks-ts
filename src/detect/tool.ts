@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 
 export type ToolName = 'eslint' | 'knip' | 'jscpd' | 'ruff' | 'deptry';
 
@@ -32,14 +32,25 @@ function readJson(path: string): Record<string, unknown> | null {
   }
 }
 
+// The bin path comes from an attacker-controllable node_modules/<tool>/package.json.
+// A value like "../../evil.js" would otherwise escape the package and let
+// `habit-hooks` spawn an arbitrary committed file (RCE on clone + run). Reject any
+// resolved path that lands outside the tool's own package directory.
+function containedBin(packageDir: string, binValue: string): string | null {
+  const resolved = join(packageDir, binValue);
+  const rel = relative(packageDir, resolved);
+  if (rel.startsWith('..') || isAbsolute(rel)) return null;
+  return resolved;
+}
+
 function resolveBinFromPackageJson(packageDir: string, name: string): string | null {
   const pkg = readJson(join(packageDir, 'package.json'));
   if (pkg === null) return null;
   const bin = pkg.bin;
-  if (typeof bin === 'string') return join(packageDir, bin);
+  if (typeof bin === 'string') return containedBin(packageDir, bin);
   if (bin !== null && typeof bin === 'object' && !Array.isArray(bin)) {
     const entry = (bin as Record<string, unknown>)[name];
-    if (typeof entry === 'string') return join(packageDir, entry);
+    if (typeof entry === 'string') return containedBin(packageDir, entry);
   }
   return null;
 }
