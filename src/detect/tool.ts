@@ -11,7 +11,7 @@ interface ToolDetection {
 
 export const TOOL_CONFIG_FILENAMES: Record<ToolName, readonly string[]> = {
   eslint: ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts', 'eslint.config.cjs'],
-  knip: ['knip.json', 'knip.jsonc', 'knip.ts'],
+  knip: ['knip.json', 'knip.jsonc', 'knip.ts', 'knip.js'],
   jscpd: ['.jscpd.json', 'jscpd.json'],
   ruff: ['ruff.toml', '.ruff.toml'],
   deptry: [],

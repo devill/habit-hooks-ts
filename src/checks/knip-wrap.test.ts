@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -337,6 +337,18 @@ describe('knipWrap', () => {
 
     expect(outcome.violations).toEqual([]);
     expect(outcome.stderr?.some((s) => s.includes('no knip config'))).toBe(true);
+  });
+
+  it('does not skip when a knip.js config file exists', async () => {
+    const argvFile = installArgvRecorderKnip('6.0.0');
+    writeFile(cwd, 'package.json', JSON.stringify({ name: 'fixture', version: '0.0.0', type: 'module' }));
+    writeFile(cwd, 'knip.js', 'export default { entry: ["src/a.ts"], project: ["src/**/*.ts"] };\n');
+    const file = writeFile(cwd, 'src/a.ts', 'export const a = 1;\n');
+
+    const outcome = await runWrap(cwd, [file]);
+
+    expect(outcome.stderr?.some((s) => s.includes('no knip config'))).toBe(false);
+    expect(existsSync(argvFile)).toBe(true);
   });
 
   it('runs when knip config is supplied via package.json#knip', async () => {

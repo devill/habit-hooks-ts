@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { hasPackageJsonKey } from '../detect/package-json.js';
+import { TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
 import { isSpawnSkip, parseJsonStdout, skipOutcome, spawnWrapped } from '../wrap/run.js';
 import { KNIP_SMELL_MAP } from '../config/tool-smells.js';
@@ -17,8 +18,6 @@ import {
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
 export { buildKnipArgs, consumerKnipMajor, resolveKnipBin };
-
-const KNIP_CONFIG_FILES = ['knip.json', 'knip.jsonc', 'knip.ts', 'knip.js'];
 
 function exitFailureWarning(cwd: string, code: number, stderr: string): string {
   const detail = firstLine(stderr);
@@ -137,7 +136,7 @@ function hasPackageJson(cwd: string): boolean {
 }
 
 function hasKnipConfig(cwd: string): boolean {
-  if (KNIP_CONFIG_FILES.some((name) => existsSync(join(cwd, name)))) return true;
+  if (TOOL_CONFIG_FILENAMES.knip.some((name) => existsSync(join(cwd, name)))) return true;
   return hasPackageJsonKey(cwd, 'knip');
 }
 

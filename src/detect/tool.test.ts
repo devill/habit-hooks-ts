@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectTool } from './tool.js';
+import { detectTool, TOOL_CONFIG_FILENAMES } from './tool.js';
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), 'hh-detect-'));
@@ -102,5 +102,18 @@ describe('detectTool', () => {
 
     expect(result).not.toBeNull();
     expect(result?.configPath).toBeNull();
+  });
+
+  it('lists knip.js among the canonical knip config filenames', () => {
+    expect(TOOL_CONFIG_FILENAMES.knip).toContain('knip.js');
+  });
+
+  it('detects a knip.js config file', () => {
+    installFakeTool(cwd, 'knip');
+    writeFileSync(join(cwd, 'knip.js'), 'export default {};\n');
+
+    const result = detectTool(cwd, 'knip');
+
+    expect(result?.configPath).toMatch(/knip\.js$/);
   });
 });

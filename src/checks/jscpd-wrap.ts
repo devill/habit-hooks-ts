@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { type ShellResult } from '../wrap/shell.js';
-import { detectTool } from '../detect/tool.js';
+import { detectTool, TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
 import { isSpawnSkip, skipOutcome, spawnWrapped } from '../wrap/run.js';
@@ -13,8 +13,6 @@ import type { Check, CheckOutcome, Violation } from '../types.js';
 const require = createRequire(import.meta.url);
 
 const REPORT_FILENAME = 'jscpd-report.json';
-
-const JSCPD_CONFIG_FILES = ['.jscpd.json', 'jscpd.json'];
 
 interface JscpdLocation {
   name: string;
@@ -167,7 +165,7 @@ async function runJscpd(inputs: RunInputs, tmpRoot?: string): Promise<CheckOutco
 }
 
 function hasJscpdConfig(cwd: string): boolean {
-  if (JSCPD_CONFIG_FILES.some((name) => existsSync(join(cwd, name)))) return true;
+  if (TOOL_CONFIG_FILENAMES.jscpd.some((name) => existsSync(join(cwd, name)))) return true;
   return hasPackageJsonKey(cwd, 'jscpd');
 }
 
