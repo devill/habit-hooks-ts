@@ -1,12 +1,14 @@
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { detectTool } from '../detect/tool.js';
+import { detectTool, TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
 import { type BinResolution } from '../wrap/notices.js';
 
 const require = createRequire(import.meta.url);
 
 const KNIP_BASE_ARGS = ['--reporter', 'json', '--no-exit-code'];
+
+const PRODUCTION_MARKER = /!["']/;
 
 function bundledKnipDir(): string {
   const main = require.resolve('knip');
@@ -45,6 +47,35 @@ function bundledKnipMajor(): number | null {
 function effectiveKnipMajor(resolution: BinResolution, cwd: string): number | null {
   if (resolution.isFallback) return bundledKnipMajor();
   return consumerKnipMajor(cwd);
+}
+
+function productionMarkerInDedicatedConfig(cwd: string): boolean | null {
+  for (const filename of TOOL_CONFIG_FILENAMES.knip) {
+    const path = join(cwd, filename);
+    if (!existsSync(path)) continue;
+    try {
+      return PRODUCTION_MARKER.test(readFileSync(path, 'utf8'));
+    } catch {
+      return false;
+    }
+  }
+  return null;
+}
+
+function productionMarkerInPackageJson(cwd: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')) as { knip?: unknown };
+    if (pkg.knip === undefined) return false;
+    return PRODUCTION_MARKER.test(JSON.stringify(pkg.knip));
+  } catch {
+    return false;
+  }
+}
+
+export function knipConfigMarksProduction(cwd: string): boolean {
+  const fromDedicated = productionMarkerInDedicatedConfig(cwd);
+  if (fromDedicated !== null) return fromDedicated;
+  return productionMarkerInPackageJson(cwd);
 }
 
 export function buildKnipArgs(resolution: BinResolution, cwd: string): string[] {
