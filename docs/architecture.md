@@ -1,62 +1,49 @@
 # Habit Hooks architecture
 
-Habit Hooks is an automated code quality coach for AI agents. At its core it
-is a **router between smell detectors and fixers**: it finds smells, names
-them in a tool-independent vocabulary, and routes each to the right fix
-strategy.
+Habit Hooks is an automated code-quality coach for AI agents. It **finds
+smells, names them in a tool-independent vocabulary, and routes each to a
+fix** — usually a coaching prompt, sometimes a deterministic script.
 
-The default fix strategy is a *coaching* prompt for the agent but long term 
-fix can also be a deterministic script that applies a specific fix. 
+## The pipeline
 
-The system is three independently-configurable stages connected by a JSON
-**bag**:
+Three small CLIs composed with Unix pipes, carrying one JSON object per line
+(JSONL):
+
+```
+habit-sensors <scope flags> | habit-snoozer | habit-mapper
+```
 
 ```mermaid
 graph LR
-    files["working tree"] --> sensor
-    sensor -->|"{ issues: Issue[] }"| mapper
-    mapper -->|"GuideAction[]"| guide
-    guide --> out["console output + exit code"]
+    files["working tree"] --> sensors["habit-sensors"]
+    sensors -->|"{smell, details}\n(JSONL)"| snoozer["habit-snoozer"]
+    snoozer -->|"unsnoozed JSONL"| mapper["habit-mapper"]
+    mapper --> out["console output + exit code"]
 ```
 
-- **sensor** — *find the smells.* Run tools (or AST scans) and translate
-  each finding into a canonical, tool-independent **smell key**.
-- **mapper** — *route the smell.* A pure function `smell → GuideAction`.
-  Data, not code.
-- **guide** — *coach the fix, signal pass/fail.* Apply the smell's fix — a
-  markdown template, or a script — and compute the exit code.
+- **habit-sensors** — runs the enabled sensors (in parallel, composites last)
+  and emits one `{smell, details}` line per finding. See [sensors.md](sensors.md).
+- **habit-snoozer** — drops lines matching the snooze index. A pure stream
+  filter. See [snoozer.md](snoozer.md).
+- **habit-mapper** — groups by smell, renders each smell's guide, sets the exit
+  code. See [mapper.md](mapper.md).
 
-## Why three stages
+A fourth CLI, **habit-adapter**, is a helper used *inside* sensors: it maps a
+tool's native JSON into `{smell, details}` lines (see [sensors.md](sensors.md)).
 
-Detection is **language-specific**; coaching is **general**. The same
-"too many parameters" advice applies whether the smell was found by ESLint
-in TypeScript or by Ruff in Python. Splitting the pipeline lets us reuse one
-prompt set across every language by swapping only the sensor layer.
+`habit-hooks` itself is just the composition of the three.
 
 ## The bag
 
-Stages communicate through a single JSON value. The sensor stage produces:
+Stages communicate through a stream of JSON objects, one per line:
 
 ```jsonc
-{
-  "issues": [
-    {
-      "smell": "too-many-parameters",   // canonical routing key (kebab-case)
-      "details": {                      // open bag: metrics + interpolation
-        "file": "src/billing.ts",
-        "line": 2,
-        "column": 22,
-      }
-    }
-  ]
-}
+{ "smell": "too-many-parameters", "details": { "file": "src/billing.ts", "line": 2, "column": 22 } }
 ```
 
-`smell` is the **only** field the mapper routes on. `details` is the open
-bag: each sensor fills it with whatever is relevant to *that* smell.
-
-Common fields are conventional, so most bags look alike and one prompt can
-rely on them:
+`smell` is the **only** field with fixed meaning — it is the routing key.
+`details` is an open bag the sensor fills with whatever fits that smell.
+Conventional common fields let one prompt serve many smells:
 
 | Field             | Meaning                              |
 |-------------------|--------------------------------------|
@@ -66,15 +53,12 @@ rely on them:
 | `source`          | provenance, e.g. `eslint:max-params` |
 
 A smell may define its own required `details` shape (see
-[smell-vocabulary.md](smell-vocabulary.md)); its prompt template consumes
-exactly that shape.
-
-An empty run is `{ "issues": [] }`.
+[smell-vocabulary.md](smell-vocabulary.md)). An empty run emits no lines.
 
 ## The smell key
 
-Each sensor translates its tool's raw rule IDs into a canonical smell key.
-The mapper and prompts key off the smell, never the tool:
+Each sensor translates raw tool rule IDs into a canonical smell key. Everything
+downstream routes on the smell, never the tool:
 
 ```
 ESLint  max-params  ─┐
@@ -83,26 +67,65 @@ Biome   noTooMany.. ─┘
 ```
 
 Tool-independent is not language-universal: `explicit-any` is TypeScript-only
-but still not tool-bound (ESLint, `tsc`, or Biome could each detect it). A
-smell key must never name a tool; it may name a language-specific concept.
+but still not tool-bound. A smell key must never name a tool; it may name a
+language-specific concept. Naming rules live in
+[smell-vocabulary.md](smell-vocabulary.md).
 
-## Stage specs
+## Plugins
 
-- [sensors.md](sensors.md) — sensor contract + config (built-in, external
-  command, and the multi/composite sensor)
-- [mapper.md](mapper.md) — `smell → GuideAction` config format
-- [guide.md](guide.md) — prompt (default) and command (override) actions
+Everything language- or tool-specific lives in a **plugin**, never in the core.
+A plugin is just a directory of `.toml` sensor specs and guide files —
+contract-only, knowing nothing about the core's internals.
+
+```
+plugins/
+  generic/      sensors/  guides/      # language-independent (line-count, comments, most prompts)
+  typescript/   sensors/  guides/  config.toml
+  python/       sensors/  guides/  config.toml      # sensors written in Python
+```
+
+- A **sensor** is `sensors/<name>.toml` — a command plus its descriptor (see
+  [sensors.md](sensors.md)).
+- A **guide** is `guides/<smell>.md` (a template) or `guides/<smell>` (a
+  script) — see [guide.md](guide.md).
+- `config.toml` carries the language's defaults (file globs, which sensors are
+  on). See [config.md](config.md).
+
+Most smells are generic; a sensor that needs a real tool or a language AST is
+language-specific. A file-line-count sensor is generic; an ESLint wrapper is
+TypeScript.
+
+## Resolution: override, never overwrite
+
+A consumer project carries a `.habit-hooks/` directory mirroring the plugin
+layout. It holds **only overrides** — the project's `config.toml` plus any
+sensor or guide it wants to replace. Defaults resolve from the installed
+package, so updating Habit Hooks never clobbers a project's tuning.
+
+Any sensor or guide is resolved by first match across:
+
+1. `.habit-hooks/<language>/`
+2. `.habit-hooks/generic/`
+3. `<package>/plugins/<language>/`
+4. `<package>/plugins/generic/`
+
+`config.toml` merges in the same order (project last wins). See
+[config.md](config.md).
 
 ## Packaging
 
-One npm package, three stages behind clean internal seams so they can split
-into separate packages later.
+One npm package exposes the bins `habit-sensors`, `habit-snoozer`,
+`habit-mapper`, `habit-adapter`, and `habit-hooks` (the composition). Each
+stage is independent: it reads JSONL in and writes JSONL out, so any stage can
+be run, tested, or replaced alone.
+
+[implementation.md](implementation.md) records how each CLI decomposes into
+trivial pieces and which existing package owns each one.
 
 ## Combinations
 
-Co-occurring smells (e.g. `oversized-file` + `duplicated-code` → extract a
-module) are handled in the sensor layer, not the mapper: a **multi sensor**
-depends on other smells, receives their issues from the
-[sensor runner](sensors.md), and emits a derived smell. The mapper stays a
-pure single-smell function. Which combination smells we ship is a content
-decision, layered on later.
+Co-occurring smells (e.g. `oversized-file` + `duplicated-code` in one file →
+`needs-extraction`) are handled by a **composite sensor**: a sensor that
+`dependsOn` other smells, receives their issues on stdin, and emits a derived
+smell. `habit-sensors` runs leaf sensors first, then feeds composites. The
+mapper stays a pure single-smell function. See [sensors.md](sensors.md).

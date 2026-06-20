@@ -1,0 +1,4 @@
+# Native sensor: jscpd writes its JSON to an output dir, not stdout, so a small
+# wrapper runs it and prints {smell, details} JSONL. Language-agnostic.
+command  = "node ${dir}/jscpd.js ${files}"
+produces = ["duplicated-code"]

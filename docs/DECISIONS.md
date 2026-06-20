@@ -365,3 +365,63 @@ phases (PR #13). Each call below is an _agent decision_.
   `deep-nesting` (ruff `PLR1702`) is **deferred**: it is preview/unstable, and we
   do not opt the default preset into ruff `--preview`. Reversible — Python can be
   enabled once PLR1702 stabilises or via an AST detector.
+
+## Simplified architecture (the `simplified` branch)
+
+A ground-up re-org to cut cruft. The current single-package, TS-baked design is
+~5.6k non-test LOC for behaviour that is a few small pipes. All calls here are
+_human requested_ (Ivett) unless noted.
+
+- **The pipeline is three composed CLIs** — `habit-sensors | habit-snoozer |
+  habit-mapper`, carrying `{smell, details}` JSONL between them, one object per
+  line. `habit-mapper` absorbs the old mapper **and** guide stages (route +
+  render + exit). `habit-adapter` is a helper used inside sensors. One npm
+  package exposes all the bins.
+
+- **Everything language/tool-specific moves to `plugins/<language>` and
+  `plugins/generic`** — each a dir of `sensors/*.toml` specs and `guides/`
+  files, contract-only. Generic owns the language-independent sensors
+  (`line-count` → oversized-file, `jscpd` → duplicated-code, `needs-extraction`
+  composite). The TS plugin keeps eslint/knip/comment; Python keeps ruff/deptry
+  (sensors written in Python).
+
+- **A sensor is a single `.toml`** carrying `command` + `produces` (+ optional
+  `dependsOn`/`files`). The adapter-mapping block (`group`/`items`/`fields`/
+  `map`) is present only when the tool emits its own JSON; omitted when
+  `command` already prints `{smell, details}` JSONL. One descriptor source, read
+  statically — no `--describe` subprocess. _(Ivett's call over the agent's
+  two-source proposal.)_
+
+- **`.habit-hooks/` in a consumer holds overrides only** (Q1b) — project
+  `config.toml` plus any sensor/guide it replaces. Defaults resolve from the
+  package, so updating habit-hooks never clobbers a project's tuning. Resolution
+  is first-match across `.habit-hooks/<lang>` → `.habit-hooks/generic` →
+  `plugins/<lang>` → `plugins/generic`.
+
+- **`oversized-file` defaults to the generic line-count sensor, languages may
+  override.** The generic `line-count` sensor produces it for any language;
+  TypeScript follows the language standard and uses eslint's `max-lines` instead,
+  so `plugins/typescript/config.toml` disables `line-count` and the eslint spec
+  maps `max-lines`. Python keeps the generic sensor (no clean ruff rule). This is
+  the pattern for any generic-vs-language-native smell: generic default, language
+  override via config + spec.
+
+- **No composite ships by default.** _(Ivett)_ The composite mechanism
+  (`dependsOn` + stdin) stays first-class in the contract, but `needs-extraction`
+  was only ever a demonstrator — it moves to the `habit-hooks-ts-demo` project as
+  a worked example of a project-local composite. Docs still cite it to illustrate
+  the mechanism.
+
+- **Config is TOML** (Q5), parsed by `smol-toml`. New deps for the rebuild:
+  `smol-toml`, `execa`, `p-map`, `toposort`, `dot-prop`; keeping `commander`,
+  `fast-glob`, `nunjucks`. This lets us delete `src/wrap/*`,
+  `src/sensors/adapter.ts`, the TS sensor factories/registry, and the ~1.3k-line
+  `init` scaffolder.
+
+- **`src/prompts/` is split** — the guides (`*.md`/`*.njk`) move to plugin
+  `guides/` dirs; the non-guide code (`loader`, `registry`, `packaged-dir`,
+  `coverage.test`) had no business living among guides and folds into the
+  relevant CLI (mapper) or is deleted.
+
+Status: docs + config templates land first (this commit); implementation
+follows once the templates are refined.

@@ -1,0 +1,3 @@
+# Python plugin defaults.
+language = "python"
+files = ["**/*.py"]

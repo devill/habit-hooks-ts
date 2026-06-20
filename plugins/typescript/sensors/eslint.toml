@@ -1,0 +1,33 @@
+# Adapter sensor: ESLint emits its own nested JSON (one entry per file, with a
+# messages[] array), so habit-adapter remaps it. TS uses eslint's max-lines for
+# oversized-file (language standard), so the TS config disables the generic
+# line-count sensor — see plugins/typescript/config.toml.
+command  = "eslint -f json ${files}"
+produces = [
+  "too-many-parameters", "high-complexity", "deep-nesting", "oversized-function",
+  "oversized-file", "unused-variable", "loose-equality", "var-declaration",
+  "non-const-binding", "duplicate-import", "warning-comment", "explicit-any",
+  "non-null-assertion", "redundant-type-annotation", "parse-error",
+]
+
+group  = "[]"
+items  = "messages[]"
+fields = { smell = "ruleId", file = "group.filePath", line = "line", column = "column", message = "message" }
+
+# parse-error: ESLint fatals have ruleId=null; habit-adapter maps a fatal message
+# to parse-error. Everything else maps by rule id below.
+[map]
+"max-params" = "too-many-parameters"
+"complexity" = "high-complexity"
+"max-depth" = "deep-nesting"
+"max-lines-per-function" = "oversized-function"
+"max-lines" = "oversized-file"
+"no-unused-vars" = "unused-variable"
+"eqeqeq" = "loose-equality"
+"no-var" = "var-declaration"
+"prefer-const" = "non-const-binding"
+"no-duplicate-imports" = "duplicate-import"
+"no-warning-comments" = "warning-comment"
+"@typescript-eslint/no-explicit-any" = "explicit-any"
+"@typescript-eslint/no-non-null-assertion" = "non-null-assertion"
+"@typescript-eslint/no-inferrable-types" = "redundant-type-annotation"

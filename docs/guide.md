@@ -1,69 +1,48 @@
 # Guide
 
-The guide **coaches the fix and signals pass/fail**. It consumes the
-`GuideAction`s the mapper produced, renders agent-facing output, and computes
-the process exit code. Whatever invokes Habit Hooks — an agent loop, a git
-hook, CI — decides what a non-zero exit means.
+A guide **coaches the fix for one smell**. It is the authored content
+`habit-mapper` renders for a smell group — a markdown template or a script.
+Guides live in a plugin's `guides/` dir and resolve across the override chain
+(see [architecture.md](architecture.md)).
 
-## Actions
+A guide is generic unless it needs language-specific wording; most smells share
+one generic prompt.
 
-### `prompt` — a `.md` template
+## `guides/<smell>.md` — a template
 
-Render the smell's **template** against all of its issues and emit the
-result; the agent reads it and performs the edit.
+Rendered against all of the smell's issues, the result is emitted for the agent
+to act on. The template owns presentation — including grouping, so each smell
+groups the way that suits it (`oversized-function` by file, `duplicated-code` by
+block, `primitive-obsession` by data structure across files).
 
-The template owns presentation — including how issues are grouped, so each
-smell groups the way that suits it:
-
-- `oversized-function` — by file
-- `duplicated-code` — by the duplicated block
-- `primitive-obsession` — by the data structure, across files
-
-A plain markdown file with no interpolation is the degenerate case.
-
-An `enforced` smell with any issue contributes exit 1; `suggested`
-contributes 0.
-
-#### Template context
-
-Templates are [Nunjucks](https://mozilla.github.io/nunjucks/), rendered once
-per smell with all of that smell's issues:
+Templates are [Nunjucks](https://mozilla.github.io/nunjucks/), rendered once per
+smell with:
 
 ```ts
 {
-  smell: string;          // the smell key
-  issues: Issue[];        // every issue for this smell (each with its details bag)
+  smell: string;     // the smell key
+  issues: Issue[];   // every issue for this smell, each with its details bag
 }
 ```
 
-Grouping (`{% for %}`, the `groupby` filter), filtering, and counts are the
-template's responsibility, using the fields the sensor put in each issue's
-`details`.
+Grouping (`{% for %}`, `groupby`), filtering, and counts are the template's job,
+using the fields the sensor put in each issue's `details`. A plain markdown file
+with no interpolation is the degenerate case. Templates may `{% include %}`
+partials from the same override chain.
 
-### `command` — any other file
+## `guides/<smell>` — a script
 
-Run a script instead of rendering a template. The script is plain bash or
-PowerShell named after the smell (mirroring `<smell>.md`), and receives the
-smell's **issues** as a JSON array (`Issue[]`) on stdin. It runs once per
-smell.
+Any non-`.md` file named after the smell is run instead of rendered. It receives
+the smell's issues as a JSON array on **stdin** and runs once per smell.
 
-- The script may or may not fix the issues — sometimes it just produces
-  smarter output than a template can.
-- Its **exit code** drives pass/fail: `0` means handled (does not block);
-  a non-zero exit contributes exit 1 for an `enforced` smell.
-- A spawn or timeout failure (the script can't run) always blocks the run,
-  regardless of severity.
+- It may fix the issues, or just produce smarter output than a template could.
+- Its **exit code** drives pass/fail: `0` does not block; non-zero contributes
+  exit 1 for an `enforced` smell.
+- A spawn or timeout failure always blocks the run, regardless of severity.
 - Its stdout/stderr is shown to the agent.
 
-## Exit code summary
+## Authoring
 
-| Situation                                     | Exit code                 |
-|-----------------------------------------------|---------------------------|
-| No issues                                     | 0                         |
-| Only `suggested` smells                       | 0                         |
-| Any `enforced` smell with an unresolved issue | 1                         |
-| `command` script exits 0                      | does not block on its own |
-| `command` script fails to spawn / times out   | 1 (always blocks)         |
-
-A clean run prints the pass banner and a reminder that structural checks are
-not a substitute for a correctness/design review.
+Keep prompts short and outcome-focused (the `habit-hooks-prompting` skill's ROSE
+pattern). A project overrides a shipped guide by dropping its own
+`guides/<smell>.md` in `.habit-hooks/` — the update path never clobbers it.

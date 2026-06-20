@@ -1,0 +1,4 @@
+# Native sensor: emits {smell, details} JSONL directly, so no mapping block.
+# Generic — owns oversized-file for every language.
+command  = "node ${dir}/line-count.js --max 200 ${files}"
+produces = ["oversized-file"]

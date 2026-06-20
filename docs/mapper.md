@@ -1,91 +1,49 @@
 # Mapper
 
-The mapper **routes a smell to guidance**. It is a pure function:
+`habit-mapper` is the last stage: it **routes each smell to a guide, renders
+it, and sets the exit code**. It reads `{smell, details}` JSONL on stdin,
+groups by smell, and resolves each group to one guide.
 
-```
-smell key  ──►  GuideAction
-```
+Everything tool- and language-specific was already resolved upstream into a
+[smell key](smell-vocabulary.md), so the mapper is a pure single-smell
+function: `smell → guide`.
 
-One smell in, one action out. Everything tool- and language-specific was
-already resolved by the sensor layer into a [smell key](smell-vocabulary.md).
+## Routing
 
-## Config format
+For each smell group the mapper resolves, in order:
 
-Mapping lives under `smells` in `habit-hooks.config.*`, keyed by smell:
+1. the smell's `guide` override from config, if set;
+2. `guides/<smell>.md` — rendered as a template;
+3. `guides/<smell>` script — executed.
 
-```jsonc
-{
-  "smells": {
-    "too-many-parameters": {
-      "severity": "enforced",        // override the catalogue default
-      "changedFilesOnly": false,
-      "include": ["src/**"],
-      "exclude": ["**/*.test.ts"]
-    },
+Guide files resolve across the override chain (project before package, language
+before generic — see [architecture.md](architecture.md)). The first existing
+match wins; a `.md` is rendered, anything else is executed (see
+[guide.md](guide.md)).
 
-    "non-essential-comment": {
-      "severity": "suggested"
-    },
-
-    "redundant-type-annotation": {
-      "fix": "shared/style-nit.md"   // reuse a common template instead of <smell>.md
-    },
-
-    "warning-comment": {
-      "disabled": true
-    }
-  }
-}
-```
-
-Per-smell fields:
-
-| Field                 | Meaning                                                                                                |
-|-----------------------|--------------------------------------------------------------------------------------------------------|
-| `severity`            | `enforced` (fails the run, exit 1) or `suggested` (coaches, exits 0). Defaults to the catalogue value. |
-| `changedFilesOnly`    | Restrict to git-changed files.                                                                         |
-| `include` / `exclude` | Glob filters (relative to config dir).                                                                 |
-| `disabled`            | Drop this smell entirely.                                                                              |
-| `fix`                 | Override the fix file. A `.md` file is rendered as a template; anything else is run as a script.       |
-
-## GuideAction
-
-The mapper groups the bag by smell and resolves each group to one action,
-carrying its issues:
-
-```ts
-type Fix =
-  | { kind: 'prompt';  templatePath: string }   // rendered once over all issues
-  | { kind: 'command'; scriptPath: string };    // run once, issues array on stdin
-
-interface GuideAction {
-  smell: string;
-  severity: Severity;
-  title: string;                            // section header (from the catalogue/config)
-  description: string;                      // shown under the header, or as the uncoached body
-  issues: Issue[];                          // every issue for this smell
-  action: Fix;
-}
-```
-
-## Fix resolution
-
-The fix for a smell is the first of these that exists:
-
-1. the `fix` setting, if set;
-2. `<smell>.md` — rendered as a template;
-3. the `<smell>` script — executed.
-
-When both `<smell>.md` and a `<smell>` script exist with no `fix` set, the
-markdown wins. The extension decides the action kind: `.md` is rendered,
-anything else is executed.
-
-Files are looked up first in the consumer's override dir (config `prompts`),
-then the packaged default dir. A `fix` that names a missing file is a
-configuration error surfaced at load time, not a silent skip.
+Severity comes from the smell's config entry, else the
+[catalogue](smell-vocabulary.md) default.
 
 ## Totality
 
-Every smell resolves to *something*. One with no fix (no setting, no
-`<smell>.md`, no `<smell>` script) falls through to the **uncoached** bucket
-(see [smell-vocabulary.md](smell-vocabulary.md)) rather than being dropped.
+Every smell resolves to *something*. A smell with routing (a known severity)
+but no guide file falls back to the generic `uncoached.md` body and keeps its
+severity. A smell with **no** routing at all (truly unknown, e.g. an ESLint
+rule with no mapping) lands in the uncoached bucket — surfaced, never
+escalating the exit code. Nothing is silently dropped.
+
+## Exit code
+
+| Situation                                      | Exit code                 |
+|------------------------------------------------|---------------------------|
+| No issues                                      | 0                         |
+| Only `suggested` smells                        | 0                         |
+| Any `enforced` smell with an unresolved issue  | 1                         |
+| A guide script exits 0                         | does not block on its own |
+| A guide script fails to spawn / times out      | 1 (always blocks)         |
+
+A clean run prints the pass banner and a reminder that structural checks are not
+a substitute for a correctness/design review.
+
+Whatever invokes `habit-mapper` — an agent loop, a git hook, CI — decides what a
+non-zero exit means.

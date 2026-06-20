@@ -10,7 +10,7 @@ raw tool output *into* these keys; the mapper routes *from* them to guidance.
 - Name the **smell**, never the tool or the tool's rule ID.
 - A key may be language-specific (`explicit-any`) but must not be
   tool-specific.
-- The default prompt template for a smell is `<smell>.md` (the key, verbatim).
+- The default guide for a smell is `guides/<smell>.md` (the key, verbatim).
 
 A smell may define the `details` shape its sensors must provide and its
 prompt template consumes — e.g. `duplicated-code` carries the duplicated
@@ -54,10 +54,10 @@ has a canonical home; see `DECISIONS.md`.
 `swallowed-exception` is the first smell sourced only from ruff (`BLE001`), with
 no TypeScript twin; it carries `source: 'ruff'`. See `DECISIONS.md`.
 
-## TypeScript/JavaScript preset translation
+## TypeScript/JavaScript plugin translation
 
-The raw rule IDs the TS/JS preset sensors emit, and the smell key each maps
-to.
+The raw rule IDs the TS/JS plugin's sensor specs map (via each spec's `map`
+block), and the smell key each maps to.
 
 | Raw key (tool:rule)                               | Smell key                   |
 |---------------------------------------------------|-----------------------------|
@@ -83,10 +83,10 @@ to.
 | `knip:dependencies`                               | `unused-dependency`         |
 | `eslint:fatal`                                    | `parse-error`               |
 
-## Python preset translation
+## Python plugin translation
 
-The raw rule IDs the Python preset sensors emit, and the smell key each maps
-to (the rest of the catalogue is shared — only the sensor layer differs).
+The raw rule IDs the Python plugin's sensor specs map, and the smell key each
+maps to (the rest of the catalogue is shared — only the plugin's sensors differ).
 
 | Raw key (tool:rule) | Smell key             |
 |---------------------|-----------------------|
@@ -101,20 +101,20 @@ to (the rest of the catalogue is shared — only the sensor layer differs).
 | `line-count:max-module-lines` | `oversized-file` |
 
 TS-only smells (`explicit-any`, `var-declaration`, …) simply do not appear in
-the Python preset. `oversized-file` has no clean ruff rule, so the Python preset
-emits it from a language-agnostic line-count sensor whose threshold
-(`max-module-lines`, default 200) is read from the consumer's config text (see
-`DECISIONS.md`). `deep-nesting` ships for TypeScript only (ESLint `max-depth`);
-the Python equivalent (ruff `PLR1702`) is preview/unstable, so it is deferred
-rather than opting the default preset into ruff `--preview`.
+the Python plugin. `oversized-file` has no clean ruff rule, so the Python plugin
+reuses the generic line-count sensor (its `--max` threshold, default 200).
+`deep-nesting` ships for TypeScript only (ESLint `max-depth`); the Python
+equivalent (ruff `PLR1702`) is preview/unstable, so it is deferred rather than
+opting into ruff `--preview`.
 
 ## Combinations
 
-Some smells are **composite**: derived by a multi sensor from the co-occurrence
-of others, not from a tool (docs/architecture.md "Combinations"). `needs-extraction`
-fires when a single file has both `oversized-file` **and** `duplicated-code`. By
-default it **augments** (all three smells show); `needsExtraction.replace: true`
-suppresses the two input smells for that file so only `needs-extraction` remains.
+Some smells are **composite**: derived by a composite sensor from the
+co-occurrence of others, not from a tool (docs/architecture.md "Combinations").
+`needs-extraction` fires when a single file has both `oversized-file` **and**
+`duplicated-code`. By default it **augments** (all three smells show); a spec may
+**replace** the two input smells for that file so only `needs-extraction`
+remains.
 
 | Composite          | Derived from                          | Smell key          |
 |--------------------|---------------------------------------|--------------------|
