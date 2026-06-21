@@ -1,4 +1,4 @@
-export function requiresNodeRuntime(binPath: string): boolean {
+function requiresNodeRuntime(binPath: string): boolean {
   return binPath.endsWith('.js');
 }
 
