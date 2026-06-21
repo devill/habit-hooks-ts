@@ -26,7 +26,7 @@ export interface ResolvedScope {
 const DEFAULT_BRANCH_BASE = 'origin/main';
 const DEFAULT_MAIN_BRANCH = 'main';
 
-export class GitScopeError extends Error {}
+class GitScopeError extends Error {}
 
 function allScope(): ResolvedScope {
   return { mode: 'all', changedFiles: null };
