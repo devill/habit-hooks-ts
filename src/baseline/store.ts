@@ -14,14 +14,14 @@ export interface BaselineFile {
   files: Record<string, BaselineEntry>;
 }
 
-export class BaselineVersionError extends Error {
+class BaselineVersionError extends Error {
   constructor(version: number) {
     super(`unsupported baseline version ${String(version)}; expected 1 or 2`);
     this.name = 'BaselineVersionError';
   }
 }
 
-export class BaselineParseError extends Error {
+class BaselineParseError extends Error {
   constructor(message: string) {
     super(`failed to parse baseline: ${message}`);
     this.name = 'BaselineParseError';
