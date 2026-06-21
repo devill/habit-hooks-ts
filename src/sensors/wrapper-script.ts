@@ -10,7 +10,7 @@ import type { Issue, Sensor, SensorContext } from './types.js';
 
 // A spec object (mirroring declarativeSensor) keeps the factory under the
 // max-params cap and gives each field a name at the call site.
-export interface WrapperSpec {
+interface WrapperSpec {
   id: string;
   produces: string[];
   command: string;
