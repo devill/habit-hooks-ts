@@ -2,13 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  buildInstallCommand,
-  detectPackageManager,
-  installCommandsFor,
-  packagesFor,
-  runScriptCommand,
-} from './install-commands.js';
+import { detectPackageManager, installCommandsFor, runScriptCommand } from './install-commands.js';
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), 'hh-pm-'));
@@ -70,68 +64,80 @@ describe('runScriptCommand', () => {
   });
 });
 
-describe('buildInstallCommand', () => {
-  it('emits pnpm add -D', () => {
-    expect(buildInstallCommand('pnpm', ['knip'])).toBe('pnpm add -D knip');
-  });
-
-  it('emits npm install --save-dev', () => {
-    expect(buildInstallCommand('npm', ['knip', 'jscpd'])).toBe('npm install --save-dev knip jscpd');
-  });
-
-  it('emits yarn add -D', () => {
-    expect(buildInstallCommand('yarn', ['jscpd'])).toBe('yarn add -D jscpd');
-  });
-
-  it('emits bun add -d', () => {
-    expect(buildInstallCommand('bun', ['knip'])).toBe('bun add -d knip');
-  });
-});
-
-describe('packagesFor', () => {
-  it('expands eslint into its peer packages', () => {
-    expect(packagesFor('eslint')).toEqual(['eslint', '@eslint/js', 'typescript-eslint']);
-  });
-
-  it('returns just the tool name for knip and jscpd', () => {
-    expect(packagesFor('knip')).toEqual(['knip']);
-    expect(packagesFor('jscpd')).toEqual(['jscpd']);
-  });
-
-  it('returns just the tool name for ruff and deptry', () => {
-    expect(packagesFor('ruff')).toEqual(['ruff']);
-    expect(packagesFor('deptry')).toEqual(['deptry']);
-  });
-});
-
 describe('installCommandsFor', () => {
   let cwd: string;
-
-  beforeEach(() => {
-    cwd = makeTempDir();
-    writeFileSync(join(cwd, 'pnpm-lock.yaml'), '');
-  });
 
   afterEach(() => {
     rmSync(cwd, { recursive: true, force: true });
   });
 
-  it('returns an empty array when nothing is missing', () => {
-    expect(installCommandsFor(cwd, [])).toEqual([]);
+  function withLockfile(lockfile: string): void {
+    cwd = makeTempDir();
+    writeFileSync(join(cwd, lockfile), '');
+  }
+
+  describe('node command assembly per package manager', () => {
+    it('emits pnpm add -D for a pnpm-lock.yaml project', () => {
+      withLockfile('pnpm-lock.yaml');
+      expect(installCommandsFor(cwd, ['knip'])).toEqual(['pnpm add -D knip']);
+    });
+
+    it('emits npm install --save-dev (no lockfile) and joins multiple packages', () => {
+      cwd = makeTempDir();
+      expect(installCommandsFor(cwd, ['knip', 'jscpd'])).toEqual([
+        'npm install --save-dev knip jscpd',
+      ]);
+    });
+
+    it('emits yarn add -D for a yarn.lock project', () => {
+      withLockfile('yarn.lock');
+      expect(installCommandsFor(cwd, ['jscpd'])).toEqual(['yarn add -D jscpd']);
+    });
+
+    it('emits bun add -d for a bun.lockb project', () => {
+      withLockfile('bun.lockb');
+      expect(installCommandsFor(cwd, ['knip'])).toEqual(['bun add -d knip']);
+    });
   });
 
-  it('returns a pip command for ruff and deptry', () => {
-    expect(installCommandsFor(cwd, ['ruff', 'deptry'])).toEqual(['pip install ruff deptry']);
+  describe('package expansion', () => {
+    beforeEach(() => {
+      withLockfile('pnpm-lock.yaml');
+    });
+
+    it('expands eslint into its peer packages', () => {
+      expect(installCommandsFor(cwd, ['eslint'])).toEqual([
+        'pnpm add -D eslint @eslint/js typescript-eslint',
+      ]);
+    });
+
+    it('uses just the tool name for knip and jscpd', () => {
+      expect(installCommandsFor(cwd, ['knip', 'jscpd'])).toEqual(['pnpm add -D knip jscpd']);
+    });
+
+    it('uses just the tool name for ruff and deptry (pip)', () => {
+      expect(installCommandsFor(cwd, ['ruff', 'deptry'])).toEqual(['pip install ruff deptry']);
+    });
   });
 
-  it('returns a node command for jscpd', () => {
-    expect(installCommandsFor(cwd, ['jscpd'])).toEqual(['pnpm add -D jscpd']);
-  });
+  describe('ecosystem routing', () => {
+    beforeEach(() => {
+      withLockfile('pnpm-lock.yaml');
+    });
 
-  it('returns both node and pip commands when the missing set spans ecosystems', () => {
-    expect(installCommandsFor(cwd, ['jscpd', 'ruff'])).toEqual([
-      'pnpm add -D jscpd',
-      'pip install ruff',
-    ]);
+    it('returns an empty array when nothing is missing', () => {
+      expect(installCommandsFor(cwd, [])).toEqual([]);
+    });
+
+    it('returns a node command for jscpd', () => {
+      expect(installCommandsFor(cwd, ['jscpd'])).toEqual(['pnpm add -D jscpd']);
+    });
+
+    it('returns both node and pip commands when the missing set spans ecosystems', () => {
+      expect(installCommandsFor(cwd, ['jscpd', 'ruff'])).toEqual([
+        'pnpm add -D jscpd',
+        'pip install ruff',
+      ]);
+    });
   });
 });
