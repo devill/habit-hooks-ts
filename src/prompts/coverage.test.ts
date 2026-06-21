@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { defaultRules } from '../config/defaults.js';
 import { loadGuidance } from './loader.js';
-import { listPrompts } from './registry.js';
+import { allSeeds } from './seeds.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -15,7 +15,7 @@ function slugify(ruleId: string): string {
 const UNCOACHED_SLUG = 'uncoached';
 
 function registeredSlugs(): Set<string> {
-  return new Set(listPrompts().map((p) => slugify(p.id)));
+  return new Set(allSeeds().map((s) => slugify(s.id)));
 }
 
 function expectedSlugs(): Set<string> {
@@ -43,9 +43,9 @@ describe('prompts coverage', () => {
   });
 
   it('every registered prompt resolves guidance (tuned file or uncoached fallback)', () => {
-    for (const prompt of listPrompts()) {
-      const guidance = loadGuidance(prompt.id) ?? loadGuidance(UNCOACHED_SLUG);
-      expect(guidance, `no guidance resolvable for ${prompt.id}`).not.toBeNull();
+    for (const seed of allSeeds()) {
+      const guidance = loadGuidance(seed.id) ?? loadGuidance(UNCOACHED_SLUG);
+      expect(guidance, `no guidance resolvable for ${seed.id}`).not.toBeNull();
     }
   });
 
