@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BaselineEntry, BaselineFile } from './store.js';
 
-export interface ReapResult {
+interface ReapResult {
   files: Record<string, BaselineEntry>;
   pruned: string[];
 }

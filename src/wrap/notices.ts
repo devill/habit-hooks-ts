@@ -7,7 +7,7 @@ export interface BinResolution {
   isFallback: boolean;
 }
 
-export function fallbackNotice(tool: string, cwd: string): string {
+function fallbackNotice(tool: string, cwd: string): string {
   return `habit-hooks: using bundled ${tool} (no ${tool} installation found in ${cwd})`;
 }
 

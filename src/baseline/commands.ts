@@ -8,7 +8,6 @@ import {
   loadBaseline,
   saveBaseline,
   type BaselineEntry,
-  type BaselineFile,
 } from './store.js';
 import { toRepoRelative } from './filter.js';
 import { reapBaseline } from './reap.js';
@@ -152,5 +151,3 @@ export function baselineStatus(cwd: string): CommandResult {
   if (entries.length === 0) return ok('Baseline file is empty.\n');
   return ok(`${renderStatusLines(cwd, entries).join('\n')}\n`);
 }
-
-export type { BaselineFile };

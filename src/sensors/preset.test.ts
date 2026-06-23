@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildPresetSensors, issueToViolation, violationToIssue } from './preset.js';
+import { issueToViolation, violationToIssue } from './preset.js';
+import { buildDefaultSensors } from './registry.js';
 import { COMMENT_SMELL, JSCPD_SMELL, PARSE_ERROR_SMELL } from '../config/tool-smells.js';
-import type { Violation } from '../types.js';
+import type { Rule, Violation } from '../types.js';
 
 describe('violationToIssue', () => {
   it('maps the smell key and core fields into the details bag', () => {
@@ -47,15 +48,37 @@ describe('issueToViolation', () => {
   });
 });
 
-describe('buildPresetSensors', () => {
+describe('typescript preset', () => {
   it('registers the TS preset sensors (incl. the needs-extraction composite) with their smell keys', () => {
-    const sensors = buildPresetSensors({ sink: { notices: [], failures: [] } });
+    const sensors = buildDefaultSensors('typescript', {
+      sink: { notices: [], failures: [] },
+      cwd: '',
+      rulesById: new Map<string, Rule>(),
+    });
     expect(sensors.map((s) => s.id)).toEqual(['eslint', 'comment', 'jscpd', 'knip', 'needs-extraction']);
     const eslint = sensors.find((s) => s.id === 'eslint');
     expect(eslint?.produces).toContain('too-many-parameters');
     expect(eslint?.produces).toContain(PARSE_ERROR_SMELL);
     expect(sensors.find((s) => s.id === 'jscpd')?.produces).toEqual([JSCPD_SMELL]);
     expect(sensors.find((s) => s.id === 'comment')?.produces).toEqual([COMMENT_SMELL]);
+    const composite = sensors.find((s) => s.id === 'needs-extraction');
+    expect(composite?.produces).toEqual(['needs-extraction']);
+    expect(composite?.dependsOn).toEqual(['oversized-file', 'duplicated-code']);
+  });
+});
+
+describe('python preset', () => {
+  it('registers ruff, jscpd, deptry, line-count, and needs-extraction sensors with their smell keys', () => {
+    const sensors = buildDefaultSensors('python', {
+      sink: { notices: [], failures: [] },
+      cwd: '',
+      rulesById: new Map<string, Rule>(),
+    });
+    expect(sensors.map((s) => s.id)).toEqual(['ruff', 'jscpd', 'deptry', 'line-count', 'needs-extraction']);
+    expect(sensors.find((s) => s.id === 'ruff')?.produces).toContain('too-many-parameters');
+    expect(sensors.find((s) => s.id === 'jscpd')?.produces).toEqual([JSCPD_SMELL]);
+    expect(sensors.find((s) => s.id === 'deptry')?.produces).toEqual(['unused-dependency']);
+    expect(sensors.find((s) => s.id === 'line-count')?.produces).toEqual(['oversized-file']);
     const composite = sensors.find((s) => s.id === 'needs-extraction');
     expect(composite?.produces).toEqual(['needs-extraction']);
     expect(composite?.dependsOn).toEqual(['oversized-file', 'duplicated-code']);

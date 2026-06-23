@@ -1,16 +1,14 @@
-import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { type ShellResult } from '../wrap/shell.js';
-import { detectTool, TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
+import { TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
 import { isSpawnSkip, skipOutcome, spawnWrapped } from '../wrap/run.js';
+import { resolveJscpdBin } from './jscpd-resolve.js';
 import { JSCPD_SMELL } from '../config/tool-smells.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
-
-const require = createRequire(import.meta.url);
 
 const REPORT_FILENAME = 'jscpd-report.json';
 
@@ -27,39 +25,6 @@ interface JscpdClone {
 
 interface JscpdReport {
   duplicates?: JscpdClone[];
-}
-
-function findPackageRoot(start: string): string {
-  let dir = start;
-  while (dir !== dirname(dir)) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    dir = dirname(dir);
-  }
-  throw new Error(`Could not find package.json from ${start}`);
-}
-
-function bundledJscpdBin(): string {
-  const main = require.resolve('jscpd');
-  const pkgRoot = findPackageRoot(dirname(main));
-  const pkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as { bin?: { jscpd?: string } | string };
-  const binRel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.jscpd ?? 'bin/jscpd';
-  return join(pkgRoot, binRel);
-}
-
-export function tryBundledJscpdBin(resolver: () => string = bundledJscpdBin): string | null {
-  try {
-    return resolver();
-  } catch {
-    return null;
-  }
-}
-
-export function resolveJscpdBin(cwd: string, fallbackResolver: () => string = bundledJscpdBin): BinResolution | null {
-  const detected = detectTool(cwd, 'jscpd');
-  if (detected !== null) return { binPath: detected.binPath, isFallback: false };
-  const fallback = tryBundledJscpdBin(fallbackResolver);
-  if (fallback === null) return null;
-  return { binPath: fallback, isFallback: true };
 }
 
 function reportMissingWarning(cwd: string, code: number, stderr: string): string {
@@ -124,8 +89,8 @@ function buildArgs(reportDir: string): string[] {
   return ['-r', 'json', '-o', reportDir, '--silent', '--noTips', '-n', '.'];
 }
 
-function makeReportDir(tmpRoot: string = tmpdir()): string {
-  return mkdtempSync(join(tmpRoot, 'hh-jscpd-'));
+function makeReportDir(): string {
+  return mkdtempSync(join(tmpdir(), 'hh-jscpd-'));
 }
 
 function removeReportDir(reportDir: string): void {
@@ -155,8 +120,8 @@ async function runOnce(inputs: RunInputs, reportDir: string): Promise<CheckOutco
   return { violations: reportToViolations(report, inputs.scope, inputs.cwd), stderr: inputs.notices };
 }
 
-async function runJscpd(inputs: RunInputs, tmpRoot?: string): Promise<CheckOutcome> {
-  const reportDir = makeReportDir(tmpRoot);
+async function runJscpd(inputs: RunInputs): Promise<CheckOutcome> {
+  const reportDir = makeReportDir();
   try {
     return await runOnce(inputs, reportDir);
   } finally {
@@ -177,22 +142,18 @@ function noBinOutcome(cwd: string): CheckOutcome {
   return emptyOutcome([unresolvedBinWarning(cwd)]);
 }
 
-export async function runJscpdWrap(
-  files: string[],
-  cwd: string,
-  { resolution, tmpRoot }: { resolution: BinResolution | null; tmpRoot?: string },
-): Promise<CheckOutcome> {
+async function runJscpdWrap(files: string[], cwd: string, resolution: BinResolution | null): Promise<CheckOutcome> {
   if (files.length === 0) return { violations: [], stderr: [] };
   if (resolution === null) return noBinOutcome(cwd);
   const notices = noticesFor('jscpd', resolution, cwd);
   if (!hasJscpdConfig(cwd)) return noConfigOutcome(cwd, notices);
-  return runJscpd({ resolution, cwd, scope: new Set(files), notices }, tmpRoot);
+  return runJscpd({ resolution, cwd, scope: new Set(files), notices });
 }
 
 export const jscpdWrap: Check = {
   id: 'jscpd',
   async run(files, _rules, cwd) {
     const runCwd = cwd ?? process.cwd();
-    return runJscpdWrap(files, runCwd, { resolution: resolveJscpdBin(runCwd) });
+    return runJscpdWrap(files, runCwd, resolveJscpdBin(runCwd));
   },
 };

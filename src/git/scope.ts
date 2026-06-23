@@ -43,7 +43,7 @@ export function getLastNCommitsChanges(cwd: string, n: number): string[] {
   return getChangedVsCommit(cwd, `HEAD~${String(n)}`);
 }
 
-export function getMergeBase(cwd: string, base: string): string {
+function getMergeBase(cwd: string, base: string): string {
   return gitExec(['merge-base', 'HEAD', base], cwd).trim();
 }
 

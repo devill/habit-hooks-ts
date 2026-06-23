@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectLanguage, detectLanguageWithReason, scaffoldConfig } from './scaffold-config.js';
+import { detectLanguageWithReason, scaffoldConfig } from './scaffold-config.js';
 import { defaultSensorsFor } from '../../sensors/registry.js';
 import { loadConfig, SENSORS_FALLBACK_DEPRECATION } from '../../config/load.js';
 import { collectConfigWarnings } from '../../config/warnings.js';
 
-describe('detectLanguage', () => {
+describe('detectLanguage (through scaffoldConfig)', () => {
   let dir: string;
 
   beforeEach(() => {
@@ -19,16 +19,19 @@ describe('detectLanguage', () => {
 
   it('detects python from a pyproject.toml manifest', () => {
     writeFileSync(join(dir, 'pyproject.toml'), '[project]\nname = "x"\n');
-    expect(detectLanguage(dir)).toBe('python');
+    const result = scaffoldConfig(dir);
+    expect(readFileSync(result.path, 'utf8')).toContain('"language": "python"');
   });
 
   it('detects python from setup.py', () => {
     writeFileSync(join(dir, 'setup.py'), '');
-    expect(detectLanguage(dir)).toBe('python');
+    const result = scaffoldConfig(dir);
+    expect(readFileSync(result.path, 'utf8')).toContain('"language": "python"');
   });
 
   it('defaults to typescript', () => {
-    expect(detectLanguage(dir)).toBe('typescript');
+    const result = scaffoldConfig(dir);
+    expect(readFileSync(result.path, 'utf8')).toContain('"language": "typescript"');
   });
 
   it('scaffolds a config carrying the detected language', () => {

@@ -6,7 +6,6 @@ import {
   getChangedVsCommit,
   getCurrentBranch,
   getLastNCommitsChanges,
-  getMergeBase,
   getUncommittedFiles,
 } from './scope.js';
 import { createGitRepo, type GitRepo } from '../../tests/helpers/git.js';
@@ -77,17 +76,22 @@ describe('git/scope', () => {
     });
   });
 
-  describe('getMergeBase and getChangedVsBranch', () => {
-    it('finds the merge base against a branch and lists changed files', () => {
+  describe('getChangedVsBranch', () => {
+    it('lists files changed since the merge base, ignoring commits the base advanced past', () => {
       repo.writeFile('shared.ts', 'export const s = 1;\n');
       repo.commitAll('shared');
       repo.run(['checkout', '-b', 'feature']);
       repo.writeFile('feature.ts', 'export const f = 1;\n');
       repo.commitAll('feature work');
 
-      const base = getMergeBase(repo.cwd, 'main');
-      const sharedHash = repo.run(['rev-parse', 'main']).trim();
-      expect(base).toBe(sharedHash);
+      // Advance main past the divergence point. A naive diff against main's
+      // tip would surface main-only.ts; diffing against the merge base must
+      // not, which exercises getMergeBase's branch resolution via the
+      // public path.
+      repo.run(['checkout', 'main']);
+      repo.writeFile('main-only.ts', 'export const m = 1;\n');
+      repo.commitAll('main work');
+      repo.run(['checkout', 'feature']);
 
       const changed = getChangedVsBranch(repo.cwd, 'main');
       expect(changed).toEqual([join(repo.cwd, 'feature.ts')]);

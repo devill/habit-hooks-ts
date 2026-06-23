@@ -5,14 +5,14 @@ const FILE_GLOBS: Record<string, string[]> = {
   python: ['**/*.py'],
 };
 
-export interface DiscoverOptions {
+interface DiscoverOptions {
   exclude?: string[];
   files?: string[];
 }
 
 // Explicit `files` globs win; otherwise a built-in language supplies defaults; an
 // unknown language with no `files` resolves to nothing.
-export function globsFor(language: string, files?: string[]): string[] {
+function globsFor(language: string, files?: string[]): string[] {
   if (files !== undefined && files.length > 0) return files;
   return FILE_GLOBS[language] ?? [];
 }

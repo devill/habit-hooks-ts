@@ -3,7 +3,8 @@ import { chmodSync, mkdtempSync, mkdirSync, readdirSync, rmSync, symlinkSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { jscpdWrap, resolveJscpdBin, runJscpdWrap, tryBundledJscpdBin } from './jscpd-wrap.js';
+import { jscpdWrap } from './jscpd-wrap.js';
+import { resolveJscpdBin } from './jscpd-resolve.js';
 import type { CheckOutcome, Rule } from '../types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -50,12 +51,22 @@ async function runWrap(cwd: string, files: string[]): Promise<CheckOutcome> {
   return asOutcome(await jscpdWrap.run(files, RULES, cwd));
 }
 
-async function runWrapWithTmpRoot(cwd: string, files: string[], tmpRoot: string): Promise<CheckOutcome> {
-  return runJscpdWrap(files, cwd, { resolution: resolveJscpdBin(cwd), tmpRoot });
-}
-
-function jscpdEntries(dir: string): string[] {
-  return readdirSync(dir).filter((n) => n.startsWith('hh-jscpd-'));
+// jscpdWrap.run creates its scratch report dir under os.tmpdir() (makeReportDir).
+// os.tmpdir() honours TMPDIR per call, so pointing TMPDIR at a private dir lets us
+// observe the wrap's own scratch cleanup race-free against parallel tests. Returns
+// the scratch dirs the wrap left behind in that private root.
+async function runWrapWithPrivateTmp(cwd: string, files: string[]): Promise<string[]> {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'hh-jscpd-root-'));
+  const original = process.env.TMPDIR;
+  process.env.TMPDIR = tmpRoot;
+  try {
+    await runWrap(cwd, files);
+    return readdirSync(tmpRoot);
+  } finally {
+    if (original === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = original;
+    rmSync(tmpRoot, { recursive: true, force: true });
+  }
 }
 
 describe('jscpdWrap', () => {
@@ -131,12 +142,10 @@ describe('jscpdWrap', () => {
     writeJscpdConfig(cwd);
     const a = writeFile(cwd, 'a.ts', DUPLICATE);
     const b = writeFile(cwd, 'b.ts', DUPLICATE);
-    const tmpRoot = mkdtempSync(join(tmpdir(), 'hh-jscpd-root-'));
 
-    await runWrapWithTmpRoot(cwd, [a, b], tmpRoot);
+    const leftover = await runWrapWithPrivateTmp(cwd, [a, b]);
 
-    expect(jscpdEntries(tmpRoot)).toEqual([]);
-    rmSync(tmpRoot, { recursive: true, force: true });
+    expect(leftover).toEqual([]);
   }, 30_000);
 
   it('cleans up the tmpdir even when the report is missing', async () => {
@@ -146,12 +155,10 @@ describe('jscpdWrap', () => {
     const stub = writeFile(cwd, 'node_modules/jscpd/stub.js', '#!/usr/bin/env node\nprocess.exit(0);\n');
     chmodSync(stub, 0o755);
     writeFileSync(join(jscpdDir, 'package.json'), JSON.stringify({ bin: { jscpd: 'stub.js' } }));
-    const tmpRoot = mkdtempSync(join(tmpdir(), 'hh-jscpd-root-'));
 
-    await runWrapWithTmpRoot(cwd, [writeFile(cwd, 'a.ts', 'x')], tmpRoot);
+    const leftover = await runWrapWithPrivateTmp(cwd, [writeFile(cwd, 'a.ts', 'x')]);
 
-    expect(jscpdEntries(tmpRoot)).toEqual([]);
-    rmSync(tmpRoot, { recursive: true, force: true });
+    expect(leftover).toEqual([]);
   });
 
   it('emits a spawn-failure stderr notice when the jscpd binary cannot be executed', async () => {
@@ -192,15 +199,11 @@ describe('jscpdWrap', () => {
     expect(outcome.violations.every((v) => v.ruleId === 'duplicated-code')).toBe(true);
   }, 30_000);
 
-  it('tryBundledJscpdBin returns null when the resolver throws', () => {
-    expect(
-      tryBundledJscpdBin(() => {
-        throw new Error('synthetic');
-      }),
-    ).toBeNull();
-  });
-
-  it('resolveJscpdBin returns null when no detection and bundled resolver throws', () => {
+  it('resolveJscpdBin returns null when no consumer jscpd and the bundled fallback throws', () => {
+    // No consumer node_modules in cwd, so detection fails; the injected bundled
+    // resolver throws, so tryBundledJscpdBin swallows it and resolution is null.
+    // This null is exactly what makes jscpdWrap.run emit the "could not locate
+    // bundled bin" notice in production.
     expect(
       resolveJscpdBin(cwd, () => {
         throw new Error('synthetic');
@@ -208,12 +211,17 @@ describe('jscpdWrap', () => {
     ).toBeNull();
   });
 
-  it('runJscpdWrap returns a notice and zero violations when no bin can be resolved', async () => {
-    const file = writeFile(cwd, 'a.ts', 'export const a = 1;\n');
+  it('resolveJscpdBin prefers a consumer-detected bin over the bundled fallback', () => {
+    const jscpdDir = join(cwd, 'node_modules', 'jscpd');
+    mkdirSync(jscpdDir, { recursive: true });
+    const stub = writeFile(cwd, 'node_modules/jscpd/stub.js', '#!/usr/bin/env node\n');
+    chmodSync(stub, 0o755);
+    writeFileSync(join(jscpdDir, 'package.json'), JSON.stringify({ bin: { jscpd: 'stub.js' } }));
 
-    const outcome = await runJscpdWrap([file], cwd, { resolution: null });
+    const resolution = resolveJscpdBin(cwd, () => {
+      throw new Error('bundled fallback must not be consulted');
+    });
 
-    expect(outcome.violations).toEqual([]);
-    expect(outcome.stderr?.some((s) => s.includes('could not locate bundled bin'))).toBe(true);
+    expect(resolution).toEqual({ binPath: stub, isFallback: false });
   });
 });

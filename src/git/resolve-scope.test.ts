@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitScopeError, resolveScope } from './resolve-scope.js';
+import { resolveScope } from './resolve-scope.js';
 import { createGitRepo, type GitRepo } from '../../tests/helpers/git.js';
 
 describe('resolveScope', () => {
@@ -102,10 +102,12 @@ describe('resolveScope', () => {
     expect(result.mode).toBe('all');
   });
 
-  it('throws GitScopeError when --last is used outside a git repo', () => {
+  it('throws when --last is used outside a git repo', () => {
     const nonGit = mkdtempSync(join(tmpdir(), 'hh-nogit-'));
     try {
-      expect(() => resolveScope({ last: 1 }, undefined, nonGit)).toThrow(GitScopeError);
+      expect(() => resolveScope({ last: 1 }, undefined, nonGit)).toThrow(
+        '--last requires a git repository',
+      );
     } finally {
       rmSync(nonGit, { recursive: true, force: true });
     }

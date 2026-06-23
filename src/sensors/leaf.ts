@@ -21,7 +21,7 @@ function normalizeOutcome(result: Violation[] | CheckOutcome): CheckOutcome {
   return Array.isArray(result) ? { violations: result } : result;
 }
 
-export interface LeafSpec {
+interface LeafSpec {
   check: Check;
   produces: string[];
   sink: SensorSink;

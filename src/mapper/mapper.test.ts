@@ -2,14 +2,21 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mapIssues, resolveFix, type RoutingLookup } from './mapper.js';
+import { mapIssues, type RoutingLookup, type SmellRouting } from './mapper.js';
 import type { Issue } from '../sensors/types.js';
 
 function issue(smell: string, file: string): Issue {
   return { smell, details: { file } };
 }
 
-describe('resolveFix', () => {
+// Fix resolution (the former `resolveFix`) is internal to mapIssues. We exercise
+// every branch of it through the public entry point: a routed smell whose action
+// carries the resolved fix, so the test sees the same Fix production would build.
+function routeAs(smell: string, routing: SmellRouting): RoutingLookup {
+  return (s) => (s === smell ? routing : undefined);
+}
+
+describe('mapIssues fix resolution', () => {
   let packagedDir: string;
   let overrideDir: string;
 
@@ -24,42 +31,67 @@ describe('resolveFix', () => {
 
   it('resolves <smell>.md from the packaged dir as a prompt', () => {
     writeFileSync(join(packagedDir, 'too-many-parameters.md'), 'PROMPT');
-    const fix = resolveFix('too-many-parameters', undefined, { packagedDir });
-    expect(fix).toEqual({ kind: 'prompt', templatePath: join(packagedDir, 'too-many-parameters.md') });
+    const result = mapIssues(
+      [issue('too-many-parameters', '/a.ts')],
+      routeAs('too-many-parameters', { severity: 'enforced' }),
+      { packagedDir },
+    );
+    expect(result.actions[0]?.action).toEqual({ kind: 'prompt', templatePath: join(packagedDir, 'too-many-parameters.md') });
   });
 
   it('prefers the override dir over the packaged dir', () => {
     writeFileSync(join(packagedDir, 'duplicated-code.md'), 'PKG');
     writeFileSync(join(overrideDir, 'duplicated-code.md'), 'OVERRIDE');
-    const fix = resolveFix('duplicated-code', undefined, { overrideDir, packagedDir });
-    expect(fix).toEqual({ kind: 'prompt', templatePath: join(overrideDir, 'duplicated-code.md') });
+    const result = mapIssues(
+      [issue('duplicated-code', '/a.ts')],
+      routeAs('duplicated-code', { severity: 'enforced' }),
+      { overrideDir, packagedDir },
+    );
+    expect(result.actions[0]?.action).toEqual({ kind: 'prompt', templatePath: join(overrideDir, 'duplicated-code.md') });
   });
 
   it('falls back to a <smell> script as a command when no markdown exists', () => {
     writeFileSync(join(packagedDir, 'oversized-file'), '#!/bin/sh\n');
-    const fix = resolveFix('oversized-file', undefined, { packagedDir });
-    expect(fix).toEqual({ kind: 'command', scriptPath: join(packagedDir, 'oversized-file') });
+    const result = mapIssues(
+      [issue('oversized-file', '/a.ts')],
+      routeAs('oversized-file', { severity: 'enforced' }),
+      { packagedDir },
+    );
+    expect(result.actions[0]?.action).toEqual({ kind: 'command', scriptPath: join(packagedDir, 'oversized-file') });
   });
 
-  it('returns null (uncoached) when nothing resolves', () => {
-    expect(resolveFix('unknown-smell', undefined, { packagedDir })).toBeNull();
+  it('drops a routed smell to uncoached when nothing (incl. uncoached.md) resolves', () => {
+    const issues = [issue('unknown-smell', '/x.ts')];
+    const result = mapIssues(issues, routeAs('unknown-smell', { severity: 'enforced' }), { packagedDir });
+    expect(result.actions).toEqual([]);
+    expect(result.uncoached).toEqual(issues);
   });
 
   it('honours an explicit fix setting pointing at a markdown template', () => {
     mkdirSync(join(overrideDir, 'shared'));
     writeFileSync(join(overrideDir, 'shared', 'style.md'), 'SHARED');
-    const fix = resolveFix('redundant-type-annotation', 'shared/style.md', { overrideDir, packagedDir });
-    expect(fix).toEqual({ kind: 'prompt', templatePath: join(overrideDir, 'shared', 'style.md') });
+    const result = mapIssues(
+      [issue('redundant-type-annotation', '/a.ts')],
+      routeAs('redundant-type-annotation', { severity: 'enforced', fix: 'shared/style.md' }),
+      { overrideDir, packagedDir },
+    );
+    expect(result.actions[0]?.action).toEqual({ kind: 'prompt', templatePath: join(overrideDir, 'shared', 'style.md') });
   });
 
   it('treats a non-markdown fix setting as a command', () => {
     writeFileSync(join(packagedDir, 'fixit.sh'), '#!/bin/sh\n');
-    const fix = resolveFix('any', 'fixit.sh', { packagedDir });
-    expect(fix).toEqual({ kind: 'command', scriptPath: join(packagedDir, 'fixit.sh') });
+    const result = mapIssues(
+      [issue('any', '/a.ts')],
+      routeAs('any', { severity: 'enforced', fix: 'fixit.sh' }),
+      { packagedDir },
+    );
+    expect(result.actions[0]?.action).toEqual({ kind: 'command', scriptPath: join(packagedDir, 'fixit.sh') });
   });
 
   it('throws a config error when an explicit fix names a missing file', () => {
-    expect(() => resolveFix('any', 'nope.md', { packagedDir })).toThrow(/fix file not found: nope\.md/);
+    expect(() =>
+      mapIssues([issue('any', '/a.ts')], routeAs('any', { severity: 'enforced', fix: 'nope.md' }), { packagedDir }),
+    ).toThrow(/fix file not found: nope\.md/);
   });
 });
 

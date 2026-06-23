@@ -72,7 +72,7 @@ function resolveDefaultFix(smell: string, dirs: MapperDirs): Fix | null {
 }
 
 // 1. the `fix` setting; 2. `<smell>.md`; 3. the `<smell>` script; else uncoached.
-export function resolveFix(smell: string, fix: string | undefined, dirs: MapperDirs): Fix | null {
+function resolveFix(smell: string, fix: string | undefined, dirs: MapperDirs): Fix | null {
   if (fix !== undefined) return resolveConfiguredFix(fix, dirs);
   return resolveDefaultFix(smell, dirs);
 }

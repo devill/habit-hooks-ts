@@ -32,7 +32,7 @@ export interface SensorFactoryInput {
   rulesById: Map<string, Rule>;
 }
 
-export type SensorFactory = (_input: SensorFactoryInput) => Sensor;
+type SensorFactory = (_input: SensorFactoryInput) => Sensor;
 
 function readTextOrEmpty(path: string): string {
   return existsSync(path) ? readFileSync(path, 'utf8') : '';

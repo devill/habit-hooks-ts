@@ -4,8 +4,6 @@ import { join } from 'node:path';
 import { createGitRepo, type GitRepo } from '../../tests/helpers/git.js';
 import {
   BASELINE_FILENAME,
-  BaselineParseError,
-  BaselineVersionError,
   loadBaseline,
   saveBaseline,
 } from './store.js';
@@ -73,7 +71,6 @@ describe('baseline store', () => {
   it('throws BaselineVersionError on a future version', () => {
     repo = createGitRepo();
     repo.writeFile(BASELINE_FILENAME, JSON.stringify({ version: 3, files: {} }));
-    expect(() => loadBaseline(repo.cwd)).toThrow(BaselineVersionError);
     expect(() => loadBaseline(repo.cwd)).toThrow(/unsupported baseline version 3; expected 1 or 2/);
   });
 
@@ -148,7 +145,6 @@ describe('baseline store', () => {
         files: { 'a.ts': { snoozedAt: 'aaa' } },
       }),
     );
-    expect(() => loadBaseline(repo.cwd)).toThrow(BaselineParseError);
     expect(() => loadBaseline(repo.cwd)).toThrow(/missing 'snoozedAtCommit' string/);
   });
 
@@ -161,7 +157,6 @@ describe('baseline store', () => {
         files: { 'a.ts': { snoozedAtCommit: 'aaa' } },
       }),
     );
-    expect(() => loadBaseline(repo.cwd)).toThrow(BaselineParseError);
     expect(() => loadBaseline(repo.cwd)).toThrow(/missing 'snoozedAt' string/);
   });
 });

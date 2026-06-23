@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   absolutize,
   emptyOutcome,
-  fallbackNotice,
   firstLine,
   isSpawnFailure,
   noticesFor,
@@ -10,12 +9,6 @@ import {
 } from './notices.js';
 
 describe('notices', () => {
-  it('fallbackNotice mentions the tool and cwd', () => {
-    expect(fallbackNotice('eslint', '/x/y')).toBe(
-      'habit-hooks: using bundled eslint (no eslint installation found in /x/y)',
-    );
-  });
-
   it('spawnFailureWarning joins multiple warnings', () => {
     expect(spawnFailureWarning('knip', '/x', ['EACCES', 'spawn failed'])).toBe(
       'habit-hooks: knip skipped in /x (EACCES; spawn failed)',

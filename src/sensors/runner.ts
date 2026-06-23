@@ -5,7 +5,7 @@ import type { Issue, Sensor, SensorContext } from './types.js';
 // receives its depended-on smells' issues in ctx.deps. Unsatisfiable
 // dependencies or dependency cycles are a startup error.
 
-export interface SensorRunInput {
+interface SensorRunInput {
   files: string[];
   cwd: string;
 }

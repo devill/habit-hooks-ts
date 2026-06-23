@@ -55,7 +55,7 @@ const ADD_FLAGS: Record<PackageManager, string[]> = {
   npm: ['install', '--save-dev'],
 };
 
-export function buildInstallCommand(pm: PackageManager, packages: string[]): string {
+function buildInstallCommand(pm: PackageManager, packages: string[]): string {
   return [pm, ...ADD_FLAGS[pm], ...packages].join(' ');
 }
 
@@ -65,7 +65,7 @@ export function runScriptCommand(pm: PackageManager, script: string): string {
 
 const ESLINT_PACKAGES = ['eslint', '@eslint/js', 'typescript-eslint'];
 
-export function packagesFor(tool: ToolName): string[] {
+function packagesFor(tool: ToolName): string[] {
   if (tool === 'eslint') return ESLINT_PACKAGES;
   return [tool];
 }

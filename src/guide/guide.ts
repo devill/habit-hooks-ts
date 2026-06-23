@@ -14,12 +14,12 @@ import type { Issue } from '../sensors/types.js';
 // own way; otherwise a flat default list is rendered. Everything renders through
 // Nunjucks (a static template is the degenerate case).
 
-export interface GuideResult {
+interface GuideResult {
   stdout: string;
   exitCode: 0 | 1;
 }
 
-export interface GuideInput {
+interface GuideInput {
   result: MapResult;
   dirs: MapperDirs;
   cwd: string;

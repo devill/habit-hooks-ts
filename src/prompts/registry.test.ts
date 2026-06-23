@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import { listPrompts, lookupPrompt } from './registry.js';
+import { lookupPrompt } from './registry.js';
+import { allSeeds } from './seeds.js';
 import { loadGuidance } from './loader.js';
 
 describe('lookupPrompt', () => {
@@ -55,19 +56,24 @@ describe('lookupPrompt', () => {
   });
 });
 
-describe('listPrompts', () => {
-  it('returns the full set with no duplicates by id', () => {
-    const prompts = listPrompts();
-    const ids = prompts.map((p) => p.id);
+describe('seed catalogue', () => {
+  it('has no duplicate ids', () => {
+    const ids = allSeeds().map((s) => s.id);
     expect(ids.length).toBeGreaterThan(0);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('includes every source family', () => {
-    const ids = listPrompts().map((p) => p.id);
+    const ids = allSeeds().map((s) => s.id);
     expect(ids).toContain('too-many-parameters');
     expect(ids).toContain('duplicated-code');
     expect(ids).toContain('unused-class-member');
     expect(ids).toContain('non-essential-comment');
+  });
+
+  it('registers every seed so it is reachable through lookupPrompt', () => {
+    for (const seed of allSeeds()) {
+      expect(lookupPrompt(seed.id), `seed ${seed.id} not reachable via lookupPrompt`).not.toBeNull();
+    }
   });
 });

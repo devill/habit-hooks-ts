@@ -12,7 +12,7 @@ const CONFIG_FILENAMES = [
 
 const NEW_CONFIG_FILENAME = 'habit-hooks.config.js';
 
-export interface DetectedLanguage {
+interface DetectedLanguage {
   language: Language;
   reason: string;
 }
@@ -29,7 +29,7 @@ export function detectLanguageWithReason(cwd: string): DetectedLanguage {
   return { language: 'typescript', reason: 'no Python manifest found' };
 }
 
-export function detectLanguage(cwd: string): Language {
+function detectLanguage(cwd: string): Language {
   return detectLanguageWithReason(cwd).language;
 }
 
