@@ -36,6 +36,8 @@ npm install --save-dev habit-hooks
 
 habit-hooks depends on `eslint`, `knip`, and `jscpd`, so installing it pulls those in as well — a fresh project gets every wrap target for free. If your project already has its own versions installed, habit-hooks detects and uses those instead and falls back to the bundled binaries only when none is present.
 
+For Python projects, habit-hooks also wraps `ruff` and `deptry`. These are Python tools rather than npm packages, so they are not pulled in with habit-hooks. Install them yourself (for example `pip install ruff deptry`) to run habit-hooks on Python code.
+
 ## Quick start
 
 ```sh
