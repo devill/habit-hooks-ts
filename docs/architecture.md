@@ -96,7 +96,7 @@ Most smells are generic; a sensor that needs a real tool or a language AST is
 language-specific. A file-line-count sensor is generic; an ESLint wrapper is
 TypeScript.
 
-To build one end to end, see [building-a-plugin.md](building-a-plugin.md).
+To build one end to end, see [building-a-plugin.spec.md](building-a-plugin.spec.md).
 
 ## Resolution: override, never overwrite
 
