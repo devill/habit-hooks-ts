@@ -129,7 +129,7 @@ a tool:
 - **Composite** — `dependsOn` other smells and emits a derived one (co-occurring
   `oversized-file` + `duplicated-code` in a file → `needs-extraction`).
 - **Filter** — drops findings that pass through it. **Snoozing** is a filter
-  sensor (see [snoozer.md](snoozer.md)).
+  sensor (see [snoozer.spec.md](snoozer.spec.md)).
 
 `habit-sensors` runs producers first, then feeds transformers in dependency
 order. The mapper stays a pure single-smell function. See [sensors.md](sensors.md).

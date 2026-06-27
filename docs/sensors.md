@@ -103,7 +103,7 @@ worked example. The mechanism is part of the contract regardless.
 
 A transforming sensor may **drop** findings instead of adding them. Snoozing is
 the shipped example: it reads every finding and passes through all but the
-snoozed ones (see [snoozer.md](snoozer.md)).
+snoozed ones (see [snoozer.spec.md](snoozer.spec.md)).
 
 ## Custom sensors
 

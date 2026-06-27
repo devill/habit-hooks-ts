@@ -10,14 +10,15 @@ habit-mapper() { ../../habit-mapper; }
 
 ## Rendering Markdown guides
 
-A `guides/<smell>.md` template is rendered (Nunjucks) against the smell's
-`details`. The examples below share this guide:
+The mapper passes a smell's `details` bag to its guide untouched — only the
+guide interprets it, and its shape differs per smell. A `guides/<smell>.md`
+template renders (Nunjucks) against that bag:
 
 📄.habit-hooks/generic/guides/too-many-parameters.md
 ```markdown
 The following function definitions have more than {{ maxAllowed }} parameters:
 
-{% for v in violations -%}
+{% for v in issues -%}
 {{ v.file }}:{{ v.line }}
     {{ v.signature }} has {{ v.actual }} parameters
 {% endfor %}
@@ -35,7 +36,7 @@ Bundle related arguments into an object.
     "smell": "too-many-parameters",
     "details": {
       "maxAllowed": 3,
-      "violations": [
+      "issues": [
         {
           "file": "src/billing.ts",
           "line": 2,
@@ -64,7 +65,7 @@ Bundle related arguments into an object.
 
 ### Every finding of a smell renders in one guide 🟡
 
-The guide is rendered once per smell; its loop walks every violation.
+The guide is rendered once per smell; its loop walks every issue.
 
 ⌨️
 ```json
@@ -73,7 +74,7 @@ The guide is rendered once per smell; its loop walks every violation.
     "smell": "too-many-parameters",
     "details": {
       "maxAllowed": 3,
-      "violations": [
+      "issues": [
         {
           "file": "src/billing.ts",
           "line": 2,
@@ -116,7 +117,7 @@ smells arrive. The exit code is the most severe (here `too-many-parameters` is
 
 📄.habit-hooks/generic/guides/warning-comment.md
 ```markdown
-{% for v in violations -%}
+{% for v in issues -%}
 {{ v.file }}:{{ v.line }} {{ v.message }}
 {% endfor %}
 Resolve or remove these markers before merging.
@@ -129,7 +130,7 @@ Resolve or remove these markers before merging.
     "smell": "too-many-parameters",
     "details": {
       "maxAllowed": 3,
-      "violations": [
+      "issues": [
         {
           "file": "src/billing.ts",
           "line": 2,
@@ -142,7 +143,7 @@ Resolve or remove these markers before merging.
   {
     "smell": "warning-comment",
     "details": {
-      "violations": [
+      "issues": [
         {
           "file": "src/api.ts",
           "line": 14,
@@ -180,7 +181,7 @@ Resolve or remove these markers before merging.
 
 📄.habit-hooks/generic/guides/warning-comment.md
 ```markdown
-{% for v in violations -%}
+{% for v in issues -%}
 {{ v.file }}:{{ v.line }} {{ v.message }}
 {% endfor %}
 Resolve or remove these markers before merging.
@@ -192,7 +193,7 @@ Resolve or remove these markers before merging.
   {
     "smell": "warning-comment",
     "details": {
-      "violations": [
+      "issues": [
         {
           "file": "src/api.ts",
           "line": 14,
@@ -251,7 +252,7 @@ guide = "compact.md"
 
 📄.habit-hooks/generic/guides/compact.md
 ```markdown
-{{ violations | length }} function(s) over {{ maxAllowed }} parameters. Bundle arguments into an object.
+{{ issues | length }} function(s) over {{ maxAllowed }} parameters. Bundle arguments into an object.
 ```
 
 ⌨️
@@ -261,7 +262,7 @@ guide = "compact.md"
     "smell": "too-many-parameters",
     "details": {
       "maxAllowed": 3,
-      "violations": [
+      "issues": [
         {
           "file": "src/billing.ts",
           "line": 2,
@@ -333,7 +334,7 @@ severity = "suggested"
     "smell": "too-many-parameters",
     "details": {
       "maxAllowed": 3,
-      "violations": [
+      "issues": [
         {
           "file": "src/billing.ts",
           "line": 2,
