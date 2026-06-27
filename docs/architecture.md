@@ -27,8 +27,8 @@ graph LR
 - **habit-mapper** — maps each smell in the array to its fix — a rendered guide
   or a script — and sets the exit code. See [mapper.spec.md](mapper.spec.md).
 
-**habit-adapter** is a helper CLI used *inside* sensors: it maps a tool's native
-JSON into `{smell, details}` findings (see [sensors.md](sensors.md)).
+An **adapter sensor** wraps a linter that already emits JSON, mapping its output
+into `{smell, details}` findings via its spec (see [sensors.md](sensors.md)).
 
 `habit-hooks` itself is just the composition of the two.
 
