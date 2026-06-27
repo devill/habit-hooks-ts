@@ -1,6 +1,0 @@
-{
-  "threshold": 0,
-  "minTokens": 20,
-  "minLines": 2,
-  "ignore": ["**/node_modules/**", "**/dist/**"]
-}
