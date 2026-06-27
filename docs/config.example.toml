@@ -1,7 +1,7 @@
 # Example .habit-hooks/config.toml — everything here is optional. An empty file
 # means "use the plugin defaults". See docs/config.md.
 
-language = "typescript"
+languages = ["typescript"]   # add more for a multi-language repo
 
 [scope]
 changedOnly = false

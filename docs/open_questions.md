@@ -7,7 +7,7 @@ blocks *implementation*.
 ## Design gaps the rewrite creates (must resolve before/while building)
 
 These surfaced from folding issue #15 into the new sensor contract — the current
-`sensors.md`/`implementation.md` gloss over them.
+`sensors.md`/`typescript-based-implementation-plan.md` gloss over them.
 
 1. **Sensor `command` bin resolution.** A spec's `command = "eslint ..."` relies
    on PATH. Today's wrapper resolves the *consumer's* local tool

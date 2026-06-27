@@ -1,41 +1,39 @@
 # Guide
 
-A guide **coaches the fix for one smell**. It is the authored content
-`habit-mapper` renders for a smell group — a markdown template or a script.
-Guides live in a plugin's `guides/` dir and resolve across the override chain
-(see [architecture.md](architecture.md)).
-
-A guide is generic unless it needs language-specific wording; most smells share
-one generic prompt.
+A guide **coaches the fix for one smell**. It is the authored content the mapper
+renders for a smell — a markdown template or a script. Guides live in a plugin's
+`guides/` dir and resolve across the override chain (see
+[architecture.md](architecture.md)); a finding's `language` selects a
+language-specific guide before the generic one.
 
 ## `guides/<smell>.md` — a template
 
-Rendered against all of the smell's issues, the result is emitted for the agent
-to act on. The template owns presentation — including grouping, so each smell
-groups the way that suits it (`oversized-function` by file, `duplicated-code` by
-block, `primitive-obsession` by data structure across files).
+Rendered once for the smell, the result is emitted for the agent to act on.
 
-Templates are [Nunjucks](https://mozilla.github.io/nunjucks/), rendered once per
-smell with:
+Templates are [Nunjucks](https://mozilla.github.io/nunjucks/), rendered against
+the finding's `details` bag — whatever shape the sensor gave it
+([smell-vocabulary.md](smell-vocabulary.md)) — with `smell` and `language` also
+in scope:
 
 ```ts
 {
-  smell: string;     // the smell key
-  issues: Issue[];   // every issue for this smell, each with its details bag
+  smell: string;       // the smell key
+  language?: string;   // the finding's language, if the sensor set it
+  // ...plus every field of the finding's `details` bag
 }
 ```
 
-Grouping (`{% for %}`, `groupby`), filtering, and counts are the template's job,
-using the fields the sensor put in each issue's `details`. A plain markdown file
-with no interpolation is the degenerate case. Templates may `{% include %}`
-partials from the same override chain.
+The bag owns presentation: when it carries an array of locations the template
+loops (`{% for i in issues %}…`) and groups however suits the smell; a plain
+markdown file with no interpolation is the degenerate case. Templates may
+`{% include %}` partials from the same override chain.
 
 ## `guides/<smell>` — a script
 
 Any non-`.md` file named after the smell is run instead of rendered. It receives
-the smell's issues as a JSON array on **stdin** and runs once per smell.
+the smell's finding as JSON on **stdin** and runs once for the smell.
 
-- It may fix the issues, or just produce smarter output than a template could.
+- It may fix the issue, or just produce smarter output than a template could.
 - Its **exit code** drives pass/fail: `0` does not block; non-zero contributes
   exit 1 for an `enforced` smell.
 - A spawn or timeout failure always blocks the run, regardless of severity.
@@ -45,4 +43,5 @@ the smell's issues as a JSON array on **stdin** and runs once per smell.
 
 Keep prompts short and outcome-focused (the `habit-hooks-prompting` skill's ROSE
 pattern). A project overrides a shipped guide by dropping its own
-`guides/<smell>.md` in `.habit-hooks/` — the update path never clobbers it.
+`guides/<smell>.md` in `.habit-hooks/generic/` (or `.habit-hooks/<language>/`
+for a language-specific override) — the update path never clobbers it.
