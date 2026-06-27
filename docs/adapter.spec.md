@@ -30,7 +30,10 @@ map      = { PLR0913 = "too-many-parameters" }
   {
     "code": "PLR0913",
     "filename": "src/billing.py",
-    "location": { "row": 2, "column": 1 },
+    "location": {
+      "row": 2,
+      "column": 1
+    },
     "message": "Too many arguments in function definition"
   }
 ]
@@ -79,7 +82,12 @@ map      = { max-params = "too-many-parameters" }
   {
     "filePath": "src/billing.ts",
     "messages": [
-      { "ruleId": "max-params", "line": 2, "column": 22, "message": "Too many parameters (4)" }
+      {
+        "ruleId": "max-params",
+        "line": 2,
+        "column": 22,
+        "message": "Too many parameters (4)"
+      }
     ]
   }
 ]

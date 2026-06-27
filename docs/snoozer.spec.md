@@ -17,7 +17,15 @@ With an empty index, every finding survives.
 
 ⌨️
 ```json
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
 
 ```bash
@@ -48,7 +56,15 @@ export const x = 1;
 
 ⌨️
 ```json
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
 
 ```bash
@@ -57,7 +73,15 @@ habit-snooze snooze
 
 ⌨️
 ```json
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
 
 ```bash
@@ -80,7 +104,15 @@ export const x = 1;
 
 ⌨️
 ```json
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
 
 ```bash
@@ -94,7 +126,15 @@ export const x = 2;
 
 ⌨️
 ```json
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
 
 ```bash
