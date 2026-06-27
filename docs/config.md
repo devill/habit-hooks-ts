@@ -13,8 +13,8 @@ project last wins. Override, never overwrite — see
 ## Project `config.toml`
 
 ```toml
-language = "typescript"                  # selects the language plugin
-files = ["**/*.{ts,tsx,js,mjs,cjs}"]     # optional; default comes from the plugin
+languages = ["typescript"]               # language plugins to load; add more for a multi-language repo
+files = ["**/*.{ts,tsx,js,mjs,cjs}"]     # optional; default comes from the loaded plugins
 
 [scope]
 changedOnly = false                      # restrict every run to git-changed files
@@ -42,8 +42,8 @@ Every field is optional; an empty file is valid (pure plugin defaults).
 
 | Key        | Meaning                                                        |
 |------------|---------------------------------------------------------------|
-| `language` | Which language plugin loads. Any string; built-ins: `typescript`, `python`. |
-| `files`    | Discovery globs. Defaults from the language plugin.            |
+| `languages`| Language plugins to load (their sensors run). Built-ins: `typescript`, `python`. |
+| `files`    | Discovery globs. Defaults from the loaded plugins.            |
 | `scope`    | `changedOnly` and `branchBase` for git-scoped runs.           |
 | `sensors`  | Per-sensor overrides, keyed by sensor name.                   |
 | `smells`   | Per-smell routing overrides, keyed by smell key.             |
@@ -75,8 +75,8 @@ A smell with no override uses the catalogue default
 ## Custom smells
 
 A project (or plugin) sensor may emit a smell not in the catalogue. Declare it
-under `smells` with a `title` and `severity` so it is coached rather than
-dropped into the uncoached bucket:
+under `smells` with a `title` and `severity` so it routes the way you want
+rather than escalating with the generic uncoached prompt:
 
 ```toml
 [smells.custom-marker]

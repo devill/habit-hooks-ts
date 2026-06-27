@@ -15,6 +15,7 @@ statically, so ordering needs no subprocess) and the recipe for running it.
 ```toml
 command  = "eslint -f json ${files}"     # required
 produces = ["too-many-parameters", "high-complexity"]   # required
+language  = "typescript"                 # optional; stamped onto every finding this sensor emits
 dependsOn = []                           # optional; smells consumed (composites)
 files = ["**/*.{ts,tsx}"]                # optional; overrides discovery globs
 
@@ -29,6 +30,7 @@ map    = { max-params = "too-many-parameters", complexity = "high-complexity" }
 |-------------|----------|-------------------------------------------------------------|
 | `command`   | yes      | Shell command to run. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts). |
 | `produces`  | yes      | Smell keys this sensor can emit (used for ordering + activation). |
+| `language`  | no       | Language key stamped on every finding this sensor emits — drives per-language guide overrides. |
 | `dependsOn` | no       | Smell keys it consumes — makes it a composite (see below).  |
 | `files`     | no       | Per-sensor discovery globs, overriding the project/plugin globs. |
 | mapping     | no       | `group`/`items`/`fields`/`map` — present only when the tool emits its own JSON shape. |
