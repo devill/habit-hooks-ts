@@ -6,8 +6,8 @@ fix** — usually a coaching prompt, sometimes a deterministic script.
 
 ## The pipeline
 
-Three small CLIs composed with Unix pipes, carrying one JSON object per line
-(JSONL):
+Two small CLIs composed with a Unix pipe, carrying a JSON array of
+`{smell, details}` findings:
 
 ```
 habit-sensors <scope flags> | habit-mapper
@@ -16,12 +16,12 @@ habit-sensors <scope flags> | habit-mapper
 ```mermaid
 graph LR
     files["working tree"] --> sensors["habit-sensors"]
-    sensors -->|"unsnoozed {smell, details}\n(JSONL)"| mapper["habit-mapper"]
+    sensors -->|"unsnoozed {smell, details}\n(JSON)"| mapper["habit-mapper"]
     mapper --> out["console output + exit code"]
 ```
 
 - **habit-sensors** — runs the enabled sensors (producers in parallel,
-  transformers last) and emits one `{smell, details}` line per finding.
+  transformers last) and emits `{smell, details}` findings.
   Snoozing is a transformer — a filter sensor that drops snoozed findings. See
   [sensors.md](sensors.md).
 - **habit-mapper** — groups by smell, renders each smell's guide, sets the exit
@@ -34,7 +34,7 @@ tool's native JSON into `{smell, details}` lines (see [sensors.md](sensors.md)).
 
 ## The bag
 
-Stages communicate through a stream of JSON objects, one per line:
+Stages communicate through a JSON array of findings, each:
 
 ```jsonc
 { "smell": "too-many-parameters", "details": { "file": "src/billing.ts", "line": 2, "column": 22 } }
@@ -52,7 +52,7 @@ Conventional common fields let one prompt serve many smells:
 | `source`          | provenance, e.g. `eslint:max-params` |
 
 A smell may define its own required `details` shape (see
-[smell-vocabulary.md](smell-vocabulary.md)). An empty run emits no lines.
+[smell-vocabulary.md](smell-vocabulary.md)). An empty run emits `[]`.
 
 ## The smell key
 
@@ -115,7 +115,7 @@ Any sensor or guide is resolved by first match across:
 
 One npm package exposes the bins `habit-sensors`, `habit-mapper`,
 `habit-adapter`, and `habit-hooks` (the composition). Each
-stage is independent: it reads JSONL in and writes JSONL out, so any stage can
+stage is independent: it reads JSON in and writes JSON out, so any stage can
 be run, tested, or replaced alone.
 
 [implementation.md](implementation.md) records how each CLI decomposes into

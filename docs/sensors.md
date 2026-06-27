@@ -18,7 +18,7 @@ produces = ["too-many-parameters", "high-complexity"]   # required
 dependsOn = []                           # optional; smells consumed (composites)
 files = ["**/*.{ts,tsx}"]                # optional; overrides discovery globs
 
-# Adapter mapping — OMIT entirely when `command` already prints {smell,details} JSONL.
+# Adapter mapping — OMIT entirely when `command` already prints a {smell,details} JSON array.
 group  = "[]"                            # outer array: one entry per file (optional)
 items  = "messages[]"                    # array of issues within each entry
 fields = { smell = "ruleId", file = "group.filePath", line = "line", column = "column", message = "message" }
@@ -37,7 +37,7 @@ map    = { max-params = "too-many-parameters", complexity = "high-complexity" }
 
 The mapping block is the only difference:
 
-- **Native sensor** — `command` already prints `{smell, details}` JSONL (a
+- **Native sensor** — `command` already prints a `{smell, details}` JSON array (a
   custom Python AST tool, a one-line script). No mapping block. `habit-sensors`
   runs the command and takes its output verbatim.
 - **Adapter sensor** — wraps a tool that speaks its own JSON (ESLint, Ruff).
@@ -46,8 +46,8 @@ The mapping block is the only difference:
 
 ## habit-adapter
 
-`habit-adapter` maps a tool's native JSON (on stdin) into `{smell, details}`
-JSONL, driven by the spec's mapping block:
+`habit-adapter` maps a tool's native JSON (on stdin) into a `{smell, details}`
+JSON array, driven by the spec's mapping block:
 
 - `items` — dot-path to the array of issues. With `group`, the outer array is
   iterated first and `group.` in a field path reads the outer entry. Up to two
@@ -72,7 +72,7 @@ adapter can't express becomes a native sensor with a small script.
 3. **Run** each sensor's `command`, piping through `habit-adapter` when the spec
    has a mapping block. A composite receives the issues for its `dependsOn`
    smells on **stdin**.
-4. **Merge** every sensor's lines into one JSONL stream on stdout.
+4. **Merge** every sensor's findings into one JSON array on stdout.
 
 ### Activation
 
@@ -109,7 +109,7 @@ snoozed ones (see [snoozer.spec.md](snoozer.spec.md)).
 
 A project adds a sensor by dropping `sensors/<name>.toml` in its `.habit-hooks/`
 plugin dir and pairing it with a smell entry ([config.md](config.md)). A native
-sensor in any language works — it only has to print `{smell, details}` JSONL:
+sensor in any language works — it only has to print a `{smell, details}` JSON array:
 
 ```toml
 # .habit-hooks/python/sensors/instanceof.toml

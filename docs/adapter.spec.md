@@ -1,7 +1,7 @@
 # Habit Adapter
 
-`habit-adapter` maps a tool's native JSON (stdin) into `{smell, details}` JSONL,
-driven by a sensor spec's mapping block. The raw rule is kept in
+`habit-adapter` maps a tool's native JSON (stdin) into a `{smell, details}` JSON
+array, driven by a sensor spec's mapping block. The raw rule is kept in
 `details.source` as `<sensor>:<raw>`; `map` rewrites it to a canonical smell.
 See [sensors.md](sensors.md) for the mapping fields.
 
@@ -42,7 +42,7 @@ habit-adapter --spec ruff.toml
 
 🖥️ ✅
 ```text
-{"smell":"too-many-parameters","details":{"file":"src/billing.py","line":2,"column":1,"message":"Too many arguments in function definition","source":"ruff:PLR0913"}}
+[{"smell":"too-many-parameters","details":{"file":"src/billing.py","line":2,"column":1,"message":"Too many arguments in function definition","source":"ruff:PLR0913"}}]
 ```
 
 ## Nested tools
@@ -80,5 +80,5 @@ habit-adapter --spec eslint.toml
 
 🖥️ ✅
 ```text
-{"smell":"too-many-parameters","details":{"file":"src/billing.ts","line":2,"column":22,"message":"Too many parameters (4)","source":"eslint:max-params"}}
+[{"smell":"too-many-parameters","details":{"file":"src/billing.ts","line":2,"column":22,"message":"Too many parameters (4)","source":"eslint:max-params"}}]
 ```
