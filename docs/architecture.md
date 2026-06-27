@@ -116,15 +116,11 @@ resolves against `generic/` only.
 `config.toml` merges in the same order (project last wins). See
 [config.md](config.md).
 
-## Packaging
+## Commands
 
-One npm package exposes the bins `habit-sensors`, `habit-mapper`,
-`habit-adapter`, and `habit-hooks` (the composition). Each
-stage is independent: it reads JSON in and writes JSON out, so any stage can
-be run, tested, or replaced alone.
-
-[implementation.md](implementation.md) records how each CLI decomposes into
-trivial pieces and which existing package owns each one.
+Habit Hooks ships a small set of commands — `habit-sensors`, `habit-mapper`, and
+`habit-hooks` (their composition). Each stage is independent: it reads JSON in
+and writes JSON out, so any stage can be run, tested, or replaced alone.
 
 ## Transforming sensors
 
