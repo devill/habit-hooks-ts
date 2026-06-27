@@ -37,12 +37,23 @@ map      = { PLR0913 = "too-many-parameters" }
 ```
 
 ```bash
-habit-adapter --spec ruff.toml
+habit-adapter --spec ruff.toml | jq .
 ```
 
 🖥️ ✅
 ```text
-[{"smell":"too-many-parameters","details":{"file":"src/billing.py","line":2,"column":1,"message":"Too many arguments in function definition","source":"ruff:PLR0913"}}]
+[
+  {
+    "smell": "too-many-parameters",
+    "details": {
+      "file": "src/billing.py",
+      "line": 2,
+      "column": 1,
+      "message": "Too many arguments in function definition",
+      "source": "ruff:PLR0913"
+    }
+  }
+]
 ```
 
 ## Nested tools
@@ -75,10 +86,21 @@ map      = { max-params = "too-many-parameters" }
 ```
 
 ```bash
-habit-adapter --spec eslint.toml
+habit-adapter --spec eslint.toml | jq .
 ```
 
 🖥️ ✅
 ```text
-[{"smell":"too-many-parameters","details":{"file":"src/billing.ts","line":2,"column":22,"message":"Too many parameters (4)","source":"eslint:max-params"}}]
+[
+  {
+    "smell": "too-many-parameters",
+    "details": {
+      "file": "src/billing.ts",
+      "line": 2,
+      "column": 22,
+      "message": "Too many parameters (4)",
+      "source": "eslint:max-params"
+    }
+  }
+]
 ```

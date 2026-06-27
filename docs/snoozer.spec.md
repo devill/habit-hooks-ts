@@ -21,12 +21,20 @@ With an empty index, every finding survives.
 ```
 
 ```bash
-habit-snooze
+habit-snooze | jq .
 ```
 
 🖥️ ✅
 ```text
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
 
 ### A snoozed finding is dropped 🟡
@@ -53,7 +61,7 @@ habit-snooze snooze
 ```
 
 ```bash
-habit-snooze
+habit-snooze | jq .
 ```
 
 🖥️ ✅
@@ -90,10 +98,18 @@ export const x = 2;
 ```
 
 ```bash
-habit-snooze
+habit-snooze | jq .
 ```
 
 🖥️ ✅
 ```text
-[{"smell":"loose-equality","details":{"file":"src/x.ts","line":1}}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "file": "src/x.ts",
+      "line": 1
+    }
+  }
+]
 ```
