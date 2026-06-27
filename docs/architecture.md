@@ -16,7 +16,7 @@ habit-sensors <scope flags> | habit-mapper
 ```mermaid
 graph LR
     files["working tree"] --> sensors["habit-sensors"]
-    sensors -->|"unsnoozed {smell, details}\n(JSON)"| mapper["habit-mapper"]
+    sensors -->|"{smell, details}\n(JSON)"| mapper["habit-mapper"]
     mapper --> out["console output + exit code"]
 ```
 
@@ -24,11 +24,11 @@ graph LR
   transformers last) and emits `{smell, details}` findings.
   Snoozing is a transformer — a filter sensor that drops snoozed findings. See
   [sensors.md](sensors.md).
-- **habit-mapper** — groups by smell, renders each smell's guide, sets the exit
-  code. See [mapper.spec.md](mapper.spec.md).
+- **habit-mapper** — maps each smell in the array to its fix — a rendered guide
+  or a script — and sets the exit code. See [mapper.spec.md](mapper.spec.md).
 
-A fourth CLI, **habit-adapter**, is a helper used *inside* sensors: it maps a
-tool's native JSON into `{smell, details}` lines (see [sensors.md](sensors.md)).
+**habit-adapter** is a helper CLI used *inside* sensors: it maps a tool's native
+JSON into `{smell, details}` findings (see [sensors.md](sensors.md)).
 
 `habit-hooks` itself is just the composition of the two.
 
