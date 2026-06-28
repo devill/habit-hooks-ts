@@ -7,21 +7,23 @@ import pytest
 from harness import SpecError, SpecFailure, execute, normalize, parse_spec
 
 
+def _status(test, where: Path, repo_root: Path) -> str:
+    """Run one parsed test in its own dir; return "skip"/"pass"/"fail"."""
+    if test.skip:
+        return "skip"
+    where.mkdir()
+    try:
+        execute(test, where, repo_root)
+        return "pass"
+    except (SpecFailure, SpecError):
+        return "fail"
+
+
 def run(text: str, tmp_path: Path, repo_root: Path | None = None) -> list[str]:
-    """Parse + run a spec body, returning a status per test ("pass"/"skip"/"fail")."""
-    out = []
-    for i, test in enumerate(parse_spec(text)):
-        if test.skip:
-            out.append("skip")
-            continue
-        d = tmp_path / f"t{i}"
-        d.mkdir()
-        try:
-            execute(test, d, repo_root or tmp_path)
-            out.append("pass")
-        except (SpecFailure, SpecError):
-            out.append("fail")
-    return out
+    """Parse + run a spec body, returning a status per test."""
+    root = repo_root or tmp_path
+    cases = parse_spec(text)
+    return [_status(c, tmp_path / f"t{i}", root) for i, c in enumerate(cases)]
 
 
 # --- normalisation ---------------------------------------------------------
