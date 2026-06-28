@@ -12,9 +12,11 @@ raw tool output *into* these keys; the mapper routes *from* them to guidance.
   tool-specific.
 - The default guide for a smell is `guides/<smell>.md` (the key, verbatim).
 
-A smell may define the `details` shape its sensors must provide and its
-prompt template consumes — e.g. `duplicated-code` carries the duplicated
-block and its occurrences, not just a single `file`/`line`.
+A smell may define the shape of the smell-level `details` and of each issue's
+`details` (per-occurrence) that its sensors must provide and its prompt template
+consumes — e.g. `duplicated-code` carries the duplicated block and its
+occurrences, not just a single `file`/`line`. See the finding contract in
+[sensor-interface.spec.md](sensor-interface.spec.md).
 
 ## Catalogue
 
@@ -39,7 +41,6 @@ exits 0. The mapper config can override it per project.
 | `redundant-type-annotation` | Redundant type annotation             | enforced         |
 | `non-essential-comment`     | Non-essential comment                 | suggested        |
 | `duplicated-code`           | Duplicated code                       | suggested        |
-| `needs-extraction`          | Needs extraction                      | enforced         |
 | `unused-class-member`       | Unused class member                   | enforced         |
 | `unused-file`               | Unused file                           | enforced         |
 | `unused-export`             | Unused export                         | enforced         |
@@ -56,8 +57,8 @@ no TypeScript twin; it carries `source: 'ruff'`. See `DECISIONS.md`.
 
 ## TypeScript/JavaScript plugin translation
 
-The raw rule IDs the TS/JS plugin's sensor specs map (via each spec's `map`
-block), and the smell key each maps to.
+The raw rule IDs the TS/JS plugin's sensors translate into the smell keys (no
+map-block), and the smell key each maps to.
 
 | Raw key (tool:rule)                               | Smell key                   |
 |---------------------------------------------------|-----------------------------|
@@ -85,8 +86,9 @@ block), and the smell key each maps to.
 
 ## Python plugin translation
 
-The raw rule IDs the Python plugin's sensor specs map, and the smell key each
-maps to (the rest of the catalogue is shared — only the plugin's sensors differ).
+The raw rule IDs the Python plugin's sensors translate into the smell keys (no
+map-block), and the smell key each maps to (the rest of the catalogue is shared —
+only the plugin's sensors differ).
 
 | Raw key (tool:rule) | Smell key             |
 |---------------------|-----------------------|
@@ -106,19 +108,6 @@ reuses the generic line-count sensor (its `--max` threshold, default 200).
 `deep-nesting` ships for TypeScript only (ESLint `max-depth`); the Python
 equivalent (ruff `PLR1702`) is preview/unstable, so it is deferred rather than
 opting into ruff `--preview`.
-
-## Combinations
-
-Some smells are **composite**: derived by a composite sensor from the
-co-occurrence of others, not from a tool (docs/architecture.md "Combinations").
-`needs-extraction` fires when a single file has both `oversized-file` **and**
-`duplicated-code`. By default it **augments** (all three smells show); a spec may
-**replace** the two input smells for that file so only `needs-extraction`
-remains.
-
-| Composite          | Derived from                          | Smell key          |
-|--------------------|---------------------------------------|--------------------|
-| same-file overlap  | `oversized-file` + `duplicated-code`  | `needs-extraction` |
 
 ## Uncoached smells
 

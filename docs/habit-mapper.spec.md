@@ -1,26 +1,29 @@
 # Habit Mapper Interface
 
-`habit-mapper` reads `{smell, details}` findings as JSON on stdin, groups them by
+`habit-mapper` reads a findings array as JSON on stdin, groups the findings by
 smell, renders each smell's guide, and sets the exit code from each smell's
 severity — `enforced` fails the run (exit 1), `suggested` coaches but exits 0.
+The finding shape it consumes is the contract in
+[sensor-interface.spec.md](sensor-interface.spec.md); how guides resolve through
+the ordered plugins is in [architecture.md](architecture.md).
 
 ```bash
 habit-mapper() { ../../habit-mapper; }
 ```
 
-## Rendering Markdown guides
+## Rendering Jinja2 guides
 
-The mapper passes a smell's `details` bag to its guide untouched — only the
-guide interprets it, and its shape differs per smell. A `guides/<smell>.md`
-template renders (Nunjucks) against that bag:
+A `guides/<smell>.md` template renders (Jinja2) against the whole finding. It
+reads smell-level facts straight off `details`, and loops over `issues` for the
+per-occurrence ones — each issue carries its own `details` bag:
 
 📄.habit-hooks/generic/guides/too-many-parameters.md
 ```markdown
-The following function definitions have more than {{ maxAllowed }} parameters:
+The following function definitions have more than {{ details.maxAllowed }} parameters:
 
 {% for v in issues -%}
-{{ v.file }}:{{ v.line }}
-    {{ v.signature }} has {{ v.actual }} parameters
+{{ v.details.file }}:{{ v.details.line }}
+    {{ v.details.signature }} has {{ v.details.actual }} parameters
 {% endfor %}
 Bundle related arguments into an object.
 ```
@@ -34,17 +37,18 @@ Bundle related arguments into an object.
 [
   {
     "smell": "too-many-parameters",
-    "details": {
-      "maxAllowed": 3,
-      "issues": [
-        {
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
           "file": "src/billing.ts",
           "line": 2,
           "actual": 4,
           "signature": "bill(customer, items, discount, tax)"
         }
-      ]
-    }
+      }
+    ]
   }
 ]
 ```
@@ -63,32 +67,36 @@ src/billing.ts:2
 Bundle related arguments into an object.
 ```
 
-### Every finding of a smell renders in one guide 🟡
+### Every issue of a smell renders in one guide 🟡
 
-The guide is rendered once per smell; its loop walks every issue.
+The guide is rendered once per smell; its loop walks every issue in the finding.
 
 ⌨️
 ```json
 [
   {
     "smell": "too-many-parameters",
-    "details": {
-      "maxAllowed": 3,
-      "issues": [
-        {
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
           "file": "src/billing.ts",
           "line": 2,
           "actual": 4,
           "signature": "bill(customer, items, discount, tax)"
-        },
-        {
+        }
+      },
+      {
+        "key": "src/report.ts",
+        "details": {
           "file": "src/report.ts",
           "line": 8,
           "actual": 5,
           "signature": "render(rows, columns, theme, locale, page)"
         }
-      ]
-    }
+      }
+    ]
   }
 ]
 ```
@@ -118,7 +126,7 @@ smells arrive. The exit code is the most severe (here `too-many-parameters` is
 📄.habit-hooks/generic/guides/warning-comment.md
 ```markdown
 {% for v in issues -%}
-{{ v.file }}:{{ v.line }} {{ v.message }}
+{{ v.details.file }}:{{ v.details.line }} {{ v.details.message }}
 {% endfor %}
 Resolve or remove these markers before merging.
 ```
@@ -128,29 +136,28 @@ Resolve or remove these markers before merging.
 [
   {
     "smell": "too-many-parameters",
-    "details": {
-      "maxAllowed": 3,
-      "issues": [
-        {
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
           "file": "src/billing.ts",
           "line": 2,
           "actual": 4,
           "signature": "bill(customer, items, discount, tax)"
         }
-      ]
-    }
+      }
+    ]
   },
   {
     "smell": "warning-comment",
-    "details": {
-      "issues": [
-        {
-          "file": "src/api.ts",
-          "line": 14,
-          "message": "TODO handle retry"
-        }
-      ]
-    }
+    "details": {},
+    "issues": [
+      {
+        "key": "src/api.ts",
+        "details": { "file": "src/api.ts", "line": 14, "message": "TODO handle retry" }
+      }
+    ]
   }
 ]
 ```
@@ -182,7 +189,7 @@ Resolve or remove these markers before merging.
 📄.habit-hooks/generic/guides/warning-comment.md
 ```markdown
 {% for v in issues -%}
-{{ v.file }}:{{ v.line }} {{ v.message }}
+{{ v.details.file }}:{{ v.details.line }} {{ v.details.message }}
 {% endfor %}
 Resolve or remove these markers before merging.
 ```
@@ -192,15 +199,13 @@ Resolve or remove these markers before merging.
 [
   {
     "smell": "warning-comment",
-    "details": {
-      "issues": [
-        {
-          "file": "src/api.ts",
-          "line": 14,
-          "message": "TODO handle retry"
-        }
-      ]
-    }
+    "details": {},
+    "issues": [
+      {
+        "key": "src/api.ts",
+        "details": { "file": "src/api.ts", "line": 14, "message": "TODO handle retry" }
+      }
+    ]
   }
 ]
 ```
@@ -244,7 +249,7 @@ Habit Hooks catches structural smells, not correctness or design. If no reviewer
 
 A smell's `guide` override replaces the default `<smell>.md`.
 
-📄.habit-hooks/config.toml 
+📄.habit-hooks/config.toml
 ```toml
 [smells.too-many-parameters]
 guide = "compact.md"
@@ -252,7 +257,7 @@ guide = "compact.md"
 
 📄.habit-hooks/generic/guides/compact.md
 ```markdown
-{{ issues | length }} function(s) over {{ maxAllowed }} parameters. Bundle arguments into an object.
+{{ issues | length }} function(s) over {{ details.maxAllowed }} parameters. Bundle arguments into an object.
 ```
 
 ⌨️
@@ -260,17 +265,18 @@ guide = "compact.md"
 [
   {
     "smell": "too-many-parameters",
-    "details": {
-      "maxAllowed": 3,
-      "issues": [
-        {
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
           "file": "src/billing.ts",
           "line": 2,
           "actual": 4,
           "signature": "bill(customer, items, discount, tax)"
         }
-      ]
-    }
+      }
+    ]
   }
 ]
 ```
@@ -284,10 +290,18 @@ habit-mapper
 1 function(s) over 3 parameters. Bundle arguments into an object.
 ```
 
-### A finding's language selects a language-specific guide 🟡
+### A finding's language selects a plugin's guide 🟡
 
-When a finding carries a `language`, that language's guide overrides the generic
-one for the smell.
+To coach a `(smell, language)`, the mapper walks the `plugins` list in order and
+takes the first plugin that has a guide for that smell and language, falling back
+to `generic` last (see [architecture.md](architecture.md)). Here a finding
+carries `language = "typescript"`, so the `typescript` plugin's guide wins over
+the generic one.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["typescript", "generic"]
+```
 
 📄.habit-hooks/generic/guides/loose-equality.md
 ```markdown
@@ -305,10 +319,10 @@ Use `===`/`!==`; TypeScript will not coerce types for you.
   {
     "smell": "loose-equality",
     "language": "typescript",
-    "details": {
-      "file": "src/x.ts",
-      "line": 3
-    }
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 3 } }
+    ]
   }
 ]
 ```
@@ -322,6 +336,50 @@ habit-mapper
 Use `===`/`!==`; TypeScript will not coerce types for you.
 ```
 
+### An earlier plugin's guide wins over a later one 🟡
+
+When two plugins both have a guide for the same `(smell, language)`, the one
+listed earlier in `plugins` wins. Both `biome` and `eslint` speak `typescript`
+and ship a `loose-equality` guide; `biome` is listed first, so its guide renders.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["biome", "eslint", "generic"]
+```
+
+📄.habit-hooks/biome/guides/loose-equality.md
+```markdown
+biome: prefer `===`/`!==` over loose equality.
+```
+
+📄.habit-hooks/eslint/guides/loose-equality.md
+```markdown
+eslint: prefer `===`/`!==` over loose equality.
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "loose-equality",
+    "language": "typescript",
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 3 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 1
+```text
+biome: prefer `===`/`!==` over loose equality.
+```
+
 ### An unknown smell escalates with the default guidance 🟡
 
 A smell with no catalogue entry has no tuned guide. It defaults to `enforced`
@@ -333,9 +391,10 @@ slipping through.
 [
   {
     "smell": "mystery-rule",
-    "details": {
-      "file": "src/x.ts"
-    }
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts" } }
+    ]
   }
 ]
 ```
@@ -359,7 +418,7 @@ General guidance: the issues listed are code smells. They tell you that there is
 `severity` in config overrides the catalogue default, so an otherwise blocking
 smell stops failing the run.
 
-📄.habit-hooks/config.toml 
+📄.habit-hooks/config.toml
 ```toml
 [smells.too-many-parameters]
 severity = "suggested"
@@ -370,17 +429,18 @@ severity = "suggested"
 [
   {
     "smell": "too-many-parameters",
-    "details": {
-      "maxAllowed": 3,
-      "issues": [
-        {
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
           "file": "src/billing.ts",
           "line": 2,
           "actual": 4,
           "signature": "bill(customer, items, discount, tax)"
         }
-      ]
-    }
+      }
+    ]
   }
 ]
 ```
@@ -418,10 +478,10 @@ echo "src/legacy.ts is too large — split it into focused modules."
 [
   {
     "smell": "oversized-file",
-    "details": {
-      "file": "src/legacy.ts",
-      "lines": 800
-    }
+    "details": { "lines": 800 },
+    "issues": [
+      { "key": "src/legacy.ts", "details": { "file": "src/legacy.ts" } }
+    ]
   }
 ]
 ```
@@ -456,10 +516,10 @@ exit 1
 [
   {
     "smell": "oversized-file",
-    "details": {
-      "file": "src/legacy.ts",
-      "lines": 800
-    }
+    "details": { "lines": 800 },
+    "issues": [
+      { "key": "src/legacy.ts", "details": { "file": "src/legacy.ts" } }
+    ]
   }
 ]
 ```

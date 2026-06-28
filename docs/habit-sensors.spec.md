@@ -1,89 +1,29 @@
 # habit-sensors
 
-`habit-sensors` runs the configured pipeline and prints a `{smell, language?,
-details, issues}` findings array on stdout — the input to `habit-mapper`
-([mapper.spec.md](mapper.spec.md)). `habit-hooks` is just `habit-sensors $ARGS |
-habit-mapper`.
+`habit-sensors` is the **extract-and-transform runner**: it assembles the
+configured sensors and transformers into a pipeline, runs it over the files in
+scope, and prints a `{smell, language?, details, issues}` findings array on
+stdout — the input to `habit-mapper`. `habit-hooks` is just `habit-sensors $ARGS
+| habit-mapper`.
+
+This document specifies the runner's **behaviour** only: how sibling sensors
+combine, how a plugin stamps its language, how the transformer chain runs, how
+plugins compose, how a broken sensor is handled, and how scope flags pick the
+files. The ETL model, plugins, and override resolution it rests on are described
+in [architecture.md](architecture.md); the finding shape every step speaks is
+the contract in [sensor-interface.spec.md](sensor-interface.spec.md); the TOML
+config that wires it up is in [config.md](config.md).
 
 ```bash
 habit-sensors() { ../../habit-sensors "$@"; }
 ```
 
-## Sensors, transformers, plugins
-
-The pipeline is a recursive ETL. A **sensor** senses — no input, runs over the
-scoped files, emits findings. A **transformer** maps `findings → findings` on
-stdin/stdout and **must pass through whatever it does not handle** — that one
-invariant removes any need for a dependency graph, augment/replace modes, or an
-output stage. A node concatenates its child sensors, then pipes them through its
-transformer chain in listed order, and composes recursively:
-
-```
-root   = transformers([snooze]) ∘ concat(generic, python)
-python = transformers([])       ∘ concat(ruff, deptry, line-count)
-```
-
-A **plugin** is a bundle — `sensors/`, `transformers/`, `guides/`, `config.toml`
-— resolved across `.habit-hooks/<plugin>` → `<package>/plugins/<plugin>`. The
-root `plugins` list is **ordered = lookup priority**: the concat order here, and
-the mapper's guide-resolution order (first plugin handling `(smell, language)`
-wins, then `generic`). A plugin **declares** its `language` (`generic` declares
-none), so a plugin's name need not be its language and several plugins can share
-one — e.g. `eslint` and `biome`, both `typescript`. `generic` is listed
-explicitly so a project can drop it.
-
-## Config
-
-```toml
-# .habit-hooks/config.toml — root node
-plugins      = ["generic", "python"]
-transformers = ["snooze"]
-```
-```toml
-# .habit-hooks/generic/config.toml — a plugin node
-sensors      = ["line-count"]
-transformers = []
-```
-
-A leaf **sensor** is `sensors/<name>.toml` — `command` (required), optional
-`language`/`files`. A **transformer** is `transformers/<name>.toml` — a `command`
-reading findings on stdin and writing findings on stdout. `${files}` expands to
-the scoped files, `${dir}` to the spec's own directory.
-
-## Sensors
-
-### A sensor's command output is the findings array 🟡
-
-📄.habit-hooks/config.toml
-```toml
-plugins = ["generic"]
-```
-
-📄.habit-hooks/generic/config.toml
-```toml
-sensors = ["alpha"]
-```
-
-📄.habit-hooks/generic/sensors/alpha.toml
-```toml
-command = "cat ${dir}/alpha.json"
-```
-
-📄.habit-hooks/generic/sensors/alpha.json
-```json
-[{"smell":"warning-comment","details":{},"issues":[{"key":"src/a.txt","details":{"file":"src/a.txt","line":1,"message":"TODO a"}}]}]
-```
-
-```bash
-habit-sensors --all | jq -c .
-```
-
-🖥️ ✅
-```json
-[{"smell":"warning-comment","details":{},"issues":[{"key":"src/a.txt","details":{"file":"src/a.txt","line":1,"message":"TODO a"}}]}]
-```
+## Sensors combine
 
 ### Sibling sensors concatenate in listed order 🟡
+
+The runner runs each sensor in a plugin and concatenates their findings in the
+order the plugin's `sensors` list names them.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -126,6 +66,10 @@ habit-sensors --all | jq -c '[.[].smell]'
 
 ### A plugin stamps its declared language; the name need not match 🟡
 
+A plugin *declares* the language it speaks in its `config.toml`, and the runner
+stamps that onto the plugin's findings — even when the plugin's name is the tool
+(`ruff`) rather than the language (`python`).
+
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["ruff"]
@@ -156,9 +100,13 @@ habit-sensors --all | jq -c '[.[].language]'
 ["python"]
 ```
 
-## Transformers
+## Transformers reshape
 
-### A transformer rewrites what it handles, passes the rest through 🟡
+### A transformer rewrites what it handles and passes the rest through 🟡
+
+A transformer receives the whole findings array on stdin and returns a new one.
+Here it tags every `warning-comment` finding and leaves the `oversized-file`
+finding untouched — the pass-through rule that lets transformers compose freely.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -207,6 +155,9 @@ habit-sensors --all | jq -c 'map({smell, details})'
 
 ### The transformer chain runs left to right 🟡
 
+When a node lists several transformers, the runner pipes the findings through
+them in listed order, so each sees the previous one's output.
+
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
@@ -251,7 +202,9 @@ habit-sensors --all | jq -c '.[0].details.steps'
 
 ### Active plugins concatenate; dropping one drops its findings 🟡
 
-`python` is listed, `generic` is not — so only `python`'s sensors run.
+The root `plugins` list decides which plugins run, in order. Here `python` is
+listed and `generic` is not, so only `python`'s sensors run and `generic`'s
+findings never appear.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -302,8 +255,9 @@ habit-sensors --all | jq -c '[.[] | [.smell, .language]]'
 
 ### A broken sensor fails the run; the rest still report 🟡
 
-A spawn or non-zero tool failure yields zero findings for that sensor, a stderr
-notice, and exit 1 — a broken tool is a failed run, not a clean one.
+A spawn failure or a non-zero exit from a sensor's tool yields zero findings for
+that sensor, a stderr notice naming it, and exit 1. The sibling sensors still
+report — a broken tool is a failed run, never a clean one.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -346,22 +300,27 @@ habit-sensors: sensor 'broken' failed: this-tool-does-not-exist
 
 ## Scope
 
-`habit-sensors` picks the files the leaf sensors see, then expands `${files}`.
-Flags are mutually exclusive; with none, scope comes from `[scope]` config.
+`habit-sensors` first picks the files the leaf sensors see, then expands
+`${files}` to them. The scope flags are mutually exclusive; with none, the scope
+comes from the `[scope]` config.
 
 | Flag | Scope |
 |------|-------|
 | `--all` | every file |
 | `--file <path>` | a single file |
 | `--branch [base]` | changed vs `base` (default `scope.branchBase`) |
-| `--last <n>` | changed in the last N commits |
+| `--last <n>` | changed in the last `n` commits |
 | `--since <ref>` | changed since a commit |
 | `--config <path>` | use an explicit config file |
-| (none) | `scope.changedOnly` → uncommitted; else `scope.autoBranchOffMain` → vs base unless on `mainBranch`; else all |
+| (none) | `scope.changedOnly` → uncommitted; else `scope.autoBranchOffMain` → vs base unless on `scope.mainBranch`; else all |
 
-A git-mode flag outside a git repo errors; config-derived modes fall back to all.
+A git-mode flag run outside a git repository errors; the config-derived modes
+fall back to scanning every file instead.
 
 ### --file scopes `${files}` to one file 🟡
+
+`--file` narrows `${files}` to the one named path, so the sensor only sees
+`src/a.txt` even though `src/b.txt` also exists.
 
 📄.habit-hooks/config.toml
 ```toml

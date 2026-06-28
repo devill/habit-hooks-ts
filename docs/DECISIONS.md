@@ -18,7 +18,7 @@ a few small pipes). Calls are _human requested_ (Ivett) unless noted.
 - **A sensor is a single `.toml`** carrying `command` + `produces` (+ optional
   `language`/`dependsOn`/`files`). It just has to print the findings array; an
   adapter sensor maps a JSON-emitting tool with a `jq` transform in the command
-  ([adapter.spec.md](adapter.spec.md)). One descriptor source,
+  ([authoring-plugins.spec.md](authoring-plugins.spec.md)). One descriptor source,
   read statically — no `--describe` subprocess. _(Ivett's call over the agent's
   two-source proposal.)_
 
@@ -118,3 +118,17 @@ Pinned in [habit-sensors.spec.md](habit-sensors.spec.md).
 - **Specs build fixture plugins in temp** via the `.habit-hooks/<plugin>`
   override chain (no plugins ship in this repo long-term); the harness `📄 @<src>`
   copy gains recursive-directory support for larger fixtures.
+
+## Deferred (migrated from the now-deleted open_questions.md)
+
+- **Plugins as separately-installable packages.** Agreed direction: plugins
+  eventually ship independently (`@habit-hooks/typescript`, etc.) for independent
+  release + community contribution. For now the in-repo `plugins/<plugin>` model
+  stands; the package split is a later, additive step.
+- **`init`'s new shape.** The old ~1.3k-line scaffolder is slated for deletion in
+  favour of copying override templates into `.habit-hooks/`. Revisit once its
+  much smaller shape is decided.
+
+The three earlier design gaps (sensor-command bin resolution, conditional adapter
+mapping, config validation) are resolved and recorded above / in
+[checklist.md](checklist.md).

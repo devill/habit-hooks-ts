@@ -2,8 +2,8 @@
 
 The `simplified` rewrite, phase by phase. Source of truth for *what to build* is
 the executable specs in `docs/**/*.spec.md`; this file tracks *order* and the
-decisions taken while reconciling the docs. See [DECISIONS.md](DECISIONS.md) and
-[open_questions.md](open_questions.md) for rationale.
+decisions taken while reconciling the docs. See [DECISIONS.md](DECISIONS.md) for
+rationale.
 
 ## Guiding rules (apply to every phase)
 
@@ -48,84 +48,44 @@ Python package: drop `package = false`, add `[project.scripts]` entry points
 (`habit-mapper`, `habit-sensors`, `habit-snooze`, `habit-hooks`) and the runtime
 deps above (`jinja2`, `pathspec`, `pydantic`).
 
-## Phase 0 — Doc reconciliation (no product code)
+## Phase 0 — Docs (done)
 
-The pipeline + finding contract is now pinned in **`habit-sensors.spec.md`** and
-**`mapper.spec.md`**: the runner is a recursive ETL of sensors + pass-through
-transformers (see [DECISIONS.md](DECISIONS.md) "Pipeline redesign"), and a
-finding is `{smell, language?, details, issues}` where `issues` is a list of
-`{key, details}`. Every other doc still describes the **superseded** model
-(`dependsOn`, composites, augment/replace, `details.issues`, `languages`) and
-must be brought into line.
+The docs were restructured into one architecture hub plus a focused doc per piece
+and interface, all on the new model (recursive-ETL pipeline; `{smell, language?,
+details, issues}` finding with `issues` a list of `{key, details}`; ordered
+`plugins` = lookup priority; issue-key snooze). The current `docs/` set is
+authoritative:
 
-- [ ] `architecture.md`: replace "The bag" + "Transforming sensors" + the
-      language-based resolution with the new contract (`issues` sibling of
-      `details`, each `{key, details}`), the ETL model (sensor vs transformer +
-      pass-through invariant + recursive concat-then-transform), and **ordered
-      `plugins` = lookup priority**. Drop `dependsOn`/composite/augment-replace.
-- [ ] `sensors.md`: rewrite around **sensor** (senses, no input) vs
-      **transformer** (stdin→stdout, passes through what it doesn't handle). Drop
-      `produces`, `dependsOn`, composites, filter sensors, activation.
-- [ ] `guide.md`: more than the Jinja2 rename — its template prose still treats
-      `issues` as living inside `details` (→ top-level sibling, `{% for v in
-      issues %}{{ v.details.file }}`), and its guide-selection still says "a
-      finding's `language` selects a language-specific guide" (→ ordered-`plugins`
-      lookup priority, first plugin handling `(smell, language)`, then generic).
-      Also note `[runners]` is plugin-shippable, so a plugin runs its own
-      language-specific fixers by default (core renders only `.md`).
-- [ ] `mapper.spec.md`: promote `issues` to a top-level sibling of `details`;
-      switch templates to `details.maxAllowed` and `{% for v in issues %}{{
-      v.details.file }}`; add the **plugin-order guide-resolution** case (walk
-      `plugins` in order, first that handles `(smell, language)` wins, then
-      `generic`).
-- [ ] `adapter.spec.md`: rewrite the jq transforms to emit one finding per smell
-      with `issues: [{key, details}]` (keep runnable — pure jq, no skip marker).
-- [ ] `building-a-plugin.spec.md`: new contract shape, sensor + transformer, a
-      plugin **declaring** its `language`, and `plugins`/`sensors`/`transformers`
-      config.
-- [ ] `snoozer.spec.md`: rewrite for **issue-key** snooze — drop the mtime
-      lapse case; snooze is a transformer keyed on `issue.key` (filename default
-      = file-level); `--prune` drops keys absent from the latest run.
-- [ ] `smell-vocabulary.md`: drop the composite / `needs-extraction` rows and the
-      stale `map`-block references.
-- [ ] `config.md` + `config.example.toml`: `plugins` (ordered, each declaring its
-      `language`) replacing `languages`; add `transformers`; drop
-      `produces`/`dependsOn`/`mode`; document the one-file runner+mapper split;
-      state that `[runners]` may be shipped by a **plugin** (resolved through the
-      override chain), not just the project.
-- [ ] Write `docs/habit-hooks.spec.md` — the trivial composition `habit-sensors
-      $ARGS | habit-mapper`, proving args forward and the mapper's exit code
-      propagates.
-- [ ] Remove the `languages` open-question / `map`-block leftovers in
-      `open_questions.md`.
-- [ ] Replace brace globs (`**/*.{ts,tsx,js,mjs,cjs}`) with a list of
-      single-extension globs (`["**/*.ts", "**/*.tsx", …]`) everywhere they
-      appear (`config.md`, `config.example.toml`, `architecture.md`, examples) —
-      pathspec's gitwildmatch has no brace expansion.
-- [ ] Replace "Nunjucks" with "Jinja2" in prose (`guide.md`, `architecture.md`,
-      `mapper.spec.md`).
+- `architecture.md` — the big picture + every cross-cutting concept (ETL model,
+  plugins, override resolution, the smell key).
+- `sensor-interface.spec.md` — the finding contract.
+- `habit-sensors.spec.md` / `habit-mapper.spec.md` / `habit-snooze.spec.md` /
+  `habit-hooks.spec.md` — the pieces.
+- `authoring-plugins.spec.md` — the build-a-plugin manual (absorbed the old
+  `sensors.md`, `adapter.spec.md`, `guide.md`).
+- `config.md`, `smell-vocabulary.md`, `executable_spec.md` — the interfaces.
 
-### Resolutions to confirm and apply
+### Design resolutions to apply when the code is built
 
 - **line-count threshold** — move the default out of the baked command into
   `plugins/generic/config.toml` `[sensors.line-count] args = ["--max", "200"]`;
   define sensor `args` as **replace-on-override** so a project's `["--max","300"]`
-  wins cleanly (no double `--max`). Update `config.md`.
+  wins cleanly (no double `--max`).
 - **plugin `language` is declared, not derived** — a plugin sets `language` in its
   `config.toml`; the runner stamps it (generic declares none). Plugin name ≠
   language, so multiple plugins can share a language; a per-sensor `language`
-  overrides. (Reverses the earlier derive-from-dir resolution.)
-- **bin resolution (open_q #1)** — `habit-sensors` prepends project-local bins
+  overrides.
+- **bin resolution** — `habit-sensors` prepends project-local bins
   (`node_modules/.bin`, `.venv/bin`) to `PATH` so project tools beat globals.
-- **tool-error policy (open_q #2)** — jq's `if .fatal then "parse-error"` covers
-  conditional mapping; a tool error (exit ∉ {0,1} or unparseable stdout) → stderr
-  notice + exit 1 ("failure is not false-clean").
+- **tool-error policy** — jq's `if .fatal then "parse-error"` covers conditional
+  mapping; a tool error (exit ∉ {0,1} or unparseable stdout) → stderr notice +
+  exit 1 ("failure is not false-clean").
 
-### Cleanup
+### Cleanup (plugins/ dir + repo, not docs)
 
 - [ ] Delete `plugins/generic/guides/oversized-function.issues.njk` (cruft).
-- [ ] Delete `plugins/generic/guides/needs-extraction.md` and the
-      `needs-extraction` catalogue row (composite ships only in the demo project).
+- [ ] Delete `plugins/generic/guides/needs-extraction.md` (the `needs-extraction`
+      catalogue row is already removed from `smell-vocabulary.md`).
 - [ ] Remove the untracked `node_modules/` (no `package.json` exists).
 
 ## Phase 1 — Spec test harness (build first)
@@ -138,14 +98,15 @@ command.
 - [ ] Implement the harness with its **own unit tests** (every marker, context
       isolation, ancestor preamble accumulation, skip reporting, normalisation).
 - [ ] Discover and run `docs/**/*.spec.md`; report pass / skip / fail.
-- [ ] Green on `adapter.spec.md` (pure jq) and reports `mapper.spec.md`'s `🟡`
-      cases as skipped without erroring.
+- [ ] Green on the pure-jq cases (`authoring-plugins.spec.md`,
+      `sensor-interface.spec.md`) and reports the `🟡` cases as skipped without
+      erroring.
 
 ## Phase 2 — Core CLIs (TDD against the harness)
 
 - [ ] `habit-mapper` — group findings by smell, render guides (Jinja2), resolve
       guides across the override chain, run fix runners for non-`.md` guides, set
-      the exit code from severity. Drive with `mapper.spec.md`.
+      the exit code from severity. Drive with `habit-mapper.spec.md`.
 - [ ] Config loader — merge TOML across the resolution chain (`tomllib`) and
       validate the merged result (pydantic v2); closes open question #3.
 - [ ] `habit-sensors` — the recursive ETL: resolve active `plugins` (ordered),
@@ -154,7 +115,7 @@ command.
       tool-error policy. Drive with `habit-sensors.spec.md`.
 - [ ] `habit-snooze` — the snooze transformer (drops issues by `key`) +
       `--snooze`/`--prune`/`--list` maintaining the key index. Drive with
-      `snoozer.spec.md`.
+      `habit-snooze.spec.md`.
 - [ ] `habit-hooks` — the `habit-sensors $ARGS | habit-mapper` composition.
       Drive with `habit-hooks.spec.md`.
 - [ ] Generic guides: add `clean.md` (no-findings output) and `warning-comment.md`.
