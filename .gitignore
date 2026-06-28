@@ -7,3 +7,7 @@ coverage
 *.tgz
 *.log
 .vscode/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
