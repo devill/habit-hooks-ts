@@ -33,10 +33,9 @@ vetted runtime deps (all checked for active maintenance + ecosystem reach).
 | File glob / path matching (sensor scope) | **pathspec** (gitwildmatch) | Most-depended-upon globber in the ecosystem (Black uses it); MPL-2.0. **No brace expansion** — author globs as a list (Phase 0 task). Walk a tree via `match_tree_files(root)`. |
 | Config validation (open q #3) | **pydantic v2** | MIT, Rust core ships as prebuilt wheels (~few MB, no toolchain). Validates the merged TOML config. |
 | Read TOML (config + sensor specs) | `tomllib` (stdlib) | 3.11+, read-only — all the core ever does is read. |
-| Composite dependency ordering | `graphlib.TopologicalSorter` (stdlib) | order + cycle detection for free. |
 | CLI arg parsing | `argparse` (stdlib) | the CLIs are tiny; no framework dep. |
 | Parallel leaf-sensor runs | `concurrent.futures` (stdlib) | sensors are subprocess-bound, threads suffice. |
-| Subprocess / git / fix runners | `subprocess` (stdlib) | git for scope + snooze keying — not GitPython. |
+| Subprocess / git / fix runners | `subprocess` (stdlib) | git for `--branch`/`--last`/`--since` scope — not GitPython. |
 | Snooze index storage | JSON (stdlib) | machine-managed file; `tomllib` can't write TOML and the index isn't hand-edited. |
 
 License note: pathspec is MPL-2.0 (weak, file-level copyleft) — fine to depend
@@ -51,28 +50,60 @@ deps above (`jinja2`, `pathspec`, `pydantic`).
 
 ## Phase 0 — Doc reconciliation (no product code)
 
-The finding contract is **`mapper.spec.md`**: a sensor emits **one entry per
-smell** — `{smell, language?, details}` — and the `details` bag carries the
-`issues: [...]` list. Make every other doc match.
+The pipeline + finding contract is now pinned in **`habit-sensors.spec.md`** and
+**`mapper.spec.md`**: the runner is a recursive ETL of sensors + pass-through
+transformers (see [DECISIONS.md](DECISIONS.md) "Pipeline redesign"), and a
+finding is `{smell, language?, details, issues}` where `issues` is a list of
+`{key, details}`. Every other doc still describes the **superseded** model
+(`dependsOn`, composites, augment/replace, `details.issues`, `languages`) and
+must be brought into line.
 
-- [ ] `architecture.md` "The bag": show the per-smell aggregated shape, not a
-      single-occurrence `details`.
-- [ ] `sensors.md`: a sensor emits one `{smell, details}` per smell with an
-      `issues` array; native and adapter sensors both aggregate.
-- [ ] `adapter.spec.md`: rewrite the jq transforms to `group_by(.smell)` and
-      build `details.issues[]` (keep them runnable — pure jq, no skip marker).
-- [ ] `building-a-plugin.spec.md`: same aggregated shape in the worked example.
-- [ ] Remove stale `map`-block references (`smell-vocabulary.md`,
-      `open_questions.md`) — the DSL is gone, jq does mapping.
-- [ ] Standardize on plural `languages` for the project config key everywhere.
+- [ ] `architecture.md`: replace "The bag" + "Transforming sensors" + the
+      language-based resolution with the new contract (`issues` sibling of
+      `details`, each `{key, details}`), the ETL model (sensor vs transformer +
+      pass-through invariant + recursive concat-then-transform), and **ordered
+      `plugins` = lookup priority**. Drop `dependsOn`/composite/augment-replace.
+- [ ] `sensors.md`: rewrite around **sensor** (senses, no input) vs
+      **transformer** (stdin→stdout, passes through what it doesn't handle). Drop
+      `produces`, `dependsOn`, composites, filter sensors, activation.
+- [ ] `guide.md`: more than the Jinja2 rename — its template prose still treats
+      `issues` as living inside `details` (→ top-level sibling, `{% for v in
+      issues %}{{ v.details.file }}`), and its guide-selection still says "a
+      finding's `language` selects a language-specific guide" (→ ordered-`plugins`
+      lookup priority, first plugin handling `(smell, language)`, then generic).
+      Also note `[runners]` is plugin-shippable, so a plugin runs its own
+      language-specific fixers by default (core renders only `.md`).
+- [ ] `mapper.spec.md`: promote `issues` to a top-level sibling of `details`;
+      switch templates to `details.maxAllowed` and `{% for v in issues %}{{
+      v.details.file }}`; add the **plugin-order guide-resolution** case (walk
+      `plugins` in order, first that handles `(smell, language)` wins, then
+      `generic`).
+- [ ] `adapter.spec.md`: rewrite the jq transforms to emit one finding per smell
+      with `issues: [{key, details}]` (keep runnable — pure jq, no skip marker).
+- [ ] `building-a-plugin.spec.md`: new contract shape, sensor + transformer, a
+      plugin **declaring** its `language`, and `plugins`/`sensors`/`transformers`
+      config.
+- [ ] `snoozer.spec.md`: rewrite for **issue-key** snooze — drop the mtime
+      lapse case; snooze is a transformer keyed on `issue.key` (filename default
+      = file-level); `--prune` drops keys absent from the latest run.
+- [ ] `smell-vocabulary.md`: drop the composite / `needs-extraction` rows and the
+      stale `map`-block references.
+- [ ] `config.md` + `config.example.toml`: `plugins` (ordered, each declaring its
+      `language`) replacing `languages`; add `transformers`; drop
+      `produces`/`dependsOn`/`mode`; document the one-file runner+mapper split;
+      state that `[runners]` may be shipped by a **plugin** (resolved through the
+      override chain), not just the project.
+- [ ] Write `docs/habit-hooks.spec.md` — the trivial composition `habit-sensors
+      $ARGS | habit-mapper`, proving args forward and the mapper's exit code
+      propagates.
+- [ ] Remove the `languages` open-question / `map`-block leftovers in
+      `open_questions.md`.
 - [ ] Replace brace globs (`**/*.{ts,tsx,js,mjs,cjs}`) with a list of
       single-extension globs (`["**/*.ts", "**/*.tsx", …]`) everywhere they
       appear (`config.md`, `config.example.toml`, `architecture.md`, examples) —
       pathspec's gitwildmatch has no brace expansion.
 - [ ] Replace "Nunjucks" with "Jinja2" in prose (`guide.md`, `architecture.md`,
-      `mapper.spec.md`) — the core is Python; the template syntax in the specs is
-      already Jinja2-compatible, only the named library changes.
-- [ ] Record the resolutions below in `DECISIONS.md` once confirmed.
+      `mapper.spec.md`).
 
 ### Resolutions to confirm and apply
 
@@ -80,17 +111,15 @@ smell** — `{smell, language?, details}` — and the `details` bag carries the
   `plugins/generic/config.toml` `[sensors.line-count] args = ["--max", "200"]`;
   define sensor `args` as **replace-on-override** so a project's `["--max","300"]`
   wins cleanly (no double `--max`). Update `config.md`.
-- **plugin `language` key** — redundant with the plugin directory name. Derive
-  the per-finding language stamp from the plugin dir; drop the config key; keep an
-  explicit per-sensor `language` only as an override. Document in `config.md`.
+- **plugin `language` is declared, not derived** — a plugin sets `language` in its
+  `config.toml`; the runner stamps it (generic declares none). Plugin name ≠
+  language, so multiple plugins can share a language; a per-sensor `language`
+  overrides. (Reverses the earlier derive-from-dir resolution.)
 - **bin resolution (open_q #1)** — `habit-sensors` prepends project-local bins
   (`node_modules/.bin`, `.venv/bin`) to `PATH` so project tools beat globals.
 - **tool-error policy (open_q #2)** — jq's `if .fatal then "parse-error"` covers
   conditional mapping; a tool error (exit ∉ {0,1} or unparseable stdout) → stderr
   notice + exit 1 ("failure is not false-clean").
-- **composite config** — add `mode = "augment" | "replace"` (default `augment`)
-  to the sensor spec alongside `dependsOn`; the composite reads its `dependsOn`
-  findings on stdin. Demonstrated only in the demo project.
 
 ### Cleanup
 
@@ -119,12 +148,15 @@ command.
       the exit code from severity. Drive with `mapper.spec.md`.
 - [ ] Config loader — merge TOML across the resolution chain (`tomllib`) and
       validate the merged result (pydantic v2); closes open question #3.
-- [ ] `habit-sensors` — resolve the sensor set, order producers/composites, run
-      commands, stamp language, merge findings, apply the tool-error policy and
-      bin resolution.
-- [ ] `habit-snooze` — filter sensor + `--snooze`/`--prune`/`--list`, git-default
-      / mtime-fallback keying. Drive with `snoozer.spec.md`.
-- [ ] `habit-hooks` — the `habit-sensors | habit-mapper` composition.
+- [ ] `habit-sensors` — the recursive ETL: resolve active `plugins` (ordered),
+      concat each plugin's child sensors, run its transformer chain, stamp the
+      plugin's declared language, apply the scope flags + bin resolution +
+      tool-error policy. Drive with `habit-sensors.spec.md`.
+- [ ] `habit-snooze` — the snooze transformer (drops issues by `key`) +
+      `--snooze`/`--prune`/`--list` maintaining the key index. Drive with
+      `snoozer.spec.md`.
+- [ ] `habit-hooks` — the `habit-sensors $ARGS | habit-mapper` composition.
+      Drive with `habit-hooks.spec.md`.
 - [ ] Generic guides: add `clean.md` (no-findings output) and `warning-comment.md`.
 
 ## Phase 3 — Generic plugin sensors (Python)
