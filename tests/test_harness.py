@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from specharness.harness import (
+from harness import (
+    SpecCase,
     SpecError,
     SpecFailure,
-    SpecCase,
     execute,
     normalize,
     parse_spec,
