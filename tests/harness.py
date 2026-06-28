@@ -307,20 +307,11 @@ class _Node:
     has_child: bool = False
 
 
-def _ancestry(node: _Node) -> list[_Node]:
-    chain: list[_Node] = []
-    while node is not None:
-        chain.append(node)
-        node = node.parent
-    chain.reverse()
-    return chain
-
-
-def parse_spec(text: str) -> list[SpecCase]:
-    """Return the leaf test cases, each with its full inherited step list."""
+def _build_tree(elements: list[object]) -> list[_Node]:
+    """Every heading as a node owning the elements directly beneath it."""
     nodes: list[_Node] = []
     stack: list[_Node] = []  # current ancestry, by increasing heading level
-    for el in _elements(text):
+    for el in elements:
         if isinstance(el, Heading):
             while stack and stack[-1].level >= el.level:
                 stack.pop()
@@ -332,15 +323,24 @@ def parse_spec(text: str) -> list[SpecCase]:
             stack.append(node)
         elif stack:
             stack[-1].elements.append(el)
+    return nodes
 
-    tests: list[SpecCase] = []
-    for node in nodes:
-        if node.has_child:
-            continue  # only leaf contexts are tests
-        chain = _ancestry(node)
-        steps = [step for anc in chain for step in _build_steps(anc.elements)]
-        tests.append(SpecCase(node.name, any(n.skip for n in chain), steps))
-    return tests
+
+def _leaf_case(leaf: _Node) -> SpecCase:
+    """A leaf's test case: its ancestors' preambles, in order, then its own steps."""
+    chain: list[_Node] = []
+    node: _Node | None = leaf
+    while node is not None:
+        chain.append(node)
+        node = node.parent
+    chain.reverse()
+    steps = [step for ancestor in chain for step in _build_steps(ancestor.elements)]
+    return SpecCase(leaf.name, any(n.skip for n in chain), steps)
+
+
+def parse_spec(text: str) -> list[SpecCase]:
+    """The markdown's leaf contexts, each as a runnable test case."""
+    return [_leaf_case(node) for node in _build_tree(_elements(text)) if not node.has_child]
 
 
 def execute(test: SpecCase, workdir: Path, repo_root: Path) -> None:
