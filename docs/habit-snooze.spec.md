@@ -25,7 +25,7 @@ only things that write it; the transform itself only reads it.
 habit-snooze() { ../../habit-snooze; }
 ```
 
-## An unsnoozed issue passes through 🟡
+## An unsnoozed issue passes through
 
 With an empty index, every finding survives untouched.
 
@@ -51,7 +51,7 @@ habit-snooze | jq -c .
 [{"smell":"loose-equality","details":{"maxAllowed":0},"issues":[{"key":"src/x.ts","details":{"file":"src/x.ts","line":1}}]}]
 ```
 
-## `--snooze` records an issue's key into the index 🟡
+## `--snooze` records an issue's key into the index
 
 `--snooze` reads the findings on stdin and adds each issue's `key` to the index.
 `--list` then shows what is snoozed.
@@ -78,7 +78,7 @@ habit-snooze --snooze && habit-snooze --list
 src/x.ts
 ```
 
-## A snoozed issue is dropped from its finding 🟡
+## A snoozed issue is dropped from its finding
 
 A finding with two issues loses the snoozed one and keeps the other.
 
@@ -122,7 +122,7 @@ habit-snooze | jq -c .
 [{"smell":"loose-equality","details":{"maxAllowed":0},"issues":[{"key":"src/y.ts","details":{"file":"src/y.ts","line":9}}]}]
 ```
 
-## A finding loses its only issue and disappears 🟡
+## A finding loses its only issue and disappears
 
 When the snoozed key was the finding's last issue, the whole finding is dropped —
 the output is an empty array, not a finding with an empty `issues` list.
@@ -166,7 +166,7 @@ habit-snooze | jq -c .
 []
 ```
 
-## `--prune` drops keys that didn't appear in the latest run 🟡
+## `--prune` drops keys that didn't appear in the latest run
 
 A snoozed key whose issue no longer shows up — the smell was fixed, or the file
 deleted — is stale. `--prune` reads the latest findings and keeps only the index
@@ -213,7 +213,7 @@ habit-snooze --prune && habit-snooze --list
 src/x.ts
 ```
 
-## `--list` shows the index 🟡
+## `--list` shows the index
 
 `--list` prints the snoozed keys, one per line, so the checked-in index is
 reviewable without reading the file by hand.
