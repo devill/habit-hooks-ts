@@ -1,4 +1,2 @@
-{% for v in issues -%}
-{{ v.details.file }}:{{ v.details.line }} {{ v.details.message }}
-{% endfor %}
+{% include "includes/line_level_issues.md" %}
 Resolve or remove these markers before merging.

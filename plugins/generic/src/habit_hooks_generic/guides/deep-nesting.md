@@ -1,5 +1,6 @@
 Deeply nested blocks — `if` inside `for` inside `try` inside `if` — force the reader to hold every enclosing condition in their head at once. The smell is not the indentation; it is that the function is doing too much branching in one place.
 
+{% include "includes/line_level_issues.md" %}
 Read the nesting from the inside out and ask what the innermost block actually needs. Usually most of the enclosing conditions are *guards* — preconditions that should be checked and bailed on early, not wrapped around the real work.
 
 Prefer, in order:

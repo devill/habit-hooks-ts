@@ -1,5 +1,6 @@
 An export nothing in production reaches is one of two things, and they have opposite fixes. Decide which before you touch it.
 
+{% include "includes/file_level_issues.md" %}
 **Dead code** — nothing uses it, tests included. Delete it, along with anything that only existed to support it. Don't keep it "just in case"; version control remembers.
 
 **Reached only by tests** — production never calls it, but a test does. The export exists to let the test see an internal. That is not allowed: it couples the test to the implementation and makes the module's public surface lie. Drive the behaviour through the real entry point instead, so the test exercises it the way production does. If the logic is substantial enough to deserve its own focused test, that is the signal it wants to be its **own class or module** — extract it, and the tested method becomes a legitimate public member of the new unit, not a back door punched into this one.
