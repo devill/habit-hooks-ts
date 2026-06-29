@@ -1,5 +1,24 @@
 # habit-hooks notes
 
+## Architecture
+
+### Sensor `args` live in the sensor's own toml, not the plugin `config.toml` (agent decision)
+
+A sensor's default CLI args (e.g. line-count's `--max 200`) live as `args = [...]`
+in `sensors/<name>.toml` and expand into the command via `${args}`. They cannot go
+in the plugin `config.toml` because `sensors = [...]` (the ordered list) and a
+`[sensors.<name>]` table collide as the same TOML key. A project replaces them
+wholesale via `.habit-hooks/config.toml` `[sensors.<name>] args = [...]`
+(replace-on-override — `SensorOverride.args`, threaded in `sensors._sensor_args`).
+
+### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
+
+When `jscpd --config <abs path>` loads `.jscpd.json`, its `path: ["src"]` resolves
+relative to the config file's directory, so a plugin-shipped config scans nothing
+in the consumer repo. `plugins/generic/sensors/jscpd.py` therefore reads `path`
+out of the config and passes those as positional args (resolved against cwd),
+keeping the config the single source for threshold/ignore/minLines/minTokens.
+
 ## Gotchas
 
 ### knip runs a gated second pass in production mode (issue #59)

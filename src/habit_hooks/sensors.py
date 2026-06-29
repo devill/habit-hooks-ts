@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -33,6 +34,7 @@ class Part:
     name: str
     command: str
     directory: Path
+    args: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -58,8 +60,20 @@ def _read_toml(path: Path) -> dict:
         return tomllib.load(f)
 
 
+def _sensor_args(name: str, spec: dict, config: Config) -> list[str]:
+    override = config.sensors.get(name)
+    if override is not None and override.args is not None:
+        return override.args
+    return spec.get("args", [])
+
+
 def _resolve_part(
-    plugins: list[str], kind: str, name: str, project_dir: Path, package_dir: Path
+    plugins: list[str],
+    kind: str,
+    name: str,
+    project_dir: Path,
+    package_dir: Path,
+    config: Config,
 ) -> Part:
     for plugin in plugins:
         path = resolve_in_plugin(
@@ -67,7 +81,8 @@ def _resolve_part(
         )
         if path is not None:
             spec = _read_toml(path)
-            return Part(name, spec["command"], path.parent)
+            args = _sensor_args(name, spec, config) if kind == "sensors" else []
+            return Part(name, spec["command"], path.parent, args)
     raise SystemExit(f"habit-sensors: no {kind[:-1]} {name!r} in {plugins}")
 
 
@@ -77,12 +92,14 @@ def _load_plugin(
     path = resolve_in_plugin(name, "config.toml", project_dir, package_dir)
     spec = _read_toml(path) if path else {}
     sensors = [
-        _resolve_part([name], "sensors", sensor, project_dir, package_dir)
+        _resolve_part([name], "sensors", sensor, project_dir, package_dir, config)
         for sensor in spec.get("sensors", [])
         if not _disabled(sensor, config)
     ]
     transformers = [
-        _resolve_part([name], "transformers", transformer, project_dir, package_dir)
+        _resolve_part(
+            [name], "transformers", transformer, project_dir, package_dir, config
+        )
         for transformer in spec.get("transformers", [])
     ]
     return Plugin(name, spec.get("language"), sensors, transformers)
@@ -93,9 +110,14 @@ def _disabled(sensor: str, config: Config) -> bool:
     return bool(override and override.disabled)
 
 
-def _expand(command: str, directory: Path, scope: Scope) -> str:
+def _expand(command: str, part: Part, scope: Scope) -> str:
     files = " ".join(scope.files)
-    return command.replace("${dir}", str(directory)).replace("${files}", files)
+    args = " ".join(shlex.quote(arg) for arg in part.args)
+    return (
+        command.replace("${dir}", str(part.directory))
+        .replace("${args}", args)
+        .replace("${files}", files)
+    )
 
 
 def _path_env(project_dir: Path) -> dict:
@@ -128,7 +150,7 @@ def _parse_findings(stdout: str) -> list[dict]:
 
 
 def run_sensor(sensor: Part, project_dir: Path, scope: Scope) -> list[dict]:
-    command = _expand(sensor.command, sensor.directory, scope)
+    command = _expand(sensor.command, sensor, scope)
     result = _run_command(command, project_dir)
     if result.returncode not in ACCEPTED_EXIT_CODES:
         raise SensorError(f"sensor {sensor.name!r} failed: {sensor.command}")
@@ -166,7 +188,7 @@ def _apply_transformers(
     transformers: list[Part], findings: list[dict], project_dir: Path, scope: Scope
 ) -> list[dict]:
     for transformer in transformers:
-        command = _expand(transformer.command, transformer.directory, scope)
+        command = _expand(transformer.command, transformer, scope)
         result = _run_command(command, project_dir, json.dumps(findings))
         findings = _parse_findings(result.stdout)
     return findings
@@ -196,7 +218,9 @@ def run_sensors(
         run.findings.extend(result.findings)
         run.notices.extend(result.notices)
     transformers = [
-        _resolve_part(config.plugins, "transformers", name, project_dir, package_dir)
+        _resolve_part(
+            config.plugins, "transformers", name, project_dir, package_dir, config
+        )
         for name in config.transformers
     ]
     run.findings = _apply_transformers(transformers, run.findings, project_dir, scope)

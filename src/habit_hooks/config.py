@@ -33,6 +33,7 @@ class SensorOverride(BaseModel):
     command: str | None = None
     language: str | None = None
     files: list[str] | None = None
+    args: list[str] | None = None
 
 
 class Config(BaseModel):
