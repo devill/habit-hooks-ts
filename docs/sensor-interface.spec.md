@@ -50,7 +50,7 @@ A guide renders against the whole finding, reading smell-level facts from
 `details` and looping over `issues` for the per-occurrence ones — see
 [habit-mapper.spec.md](habit-mapper.spec.md).
 
-## A sensor's output is a findings array 🟡
+## A sensor's output is a findings array
 
 Whatever a sensor's command prints is taken as its findings; with a single sensor,
 that array is the whole run's output.
@@ -84,7 +84,7 @@ habit-sensors --all | jq -c .
 [{"smell":"too-many-parameters","details":{"maxAllowed":3},"issues":[{"key":"src/billing.py","details":{"file":"src/billing.py","line":2,"signature":"bill(...)"}}]}]
 ```
 
-## A clean run emits an empty array 🟡
+## A clean run emits an empty array
 
 No findings is an empty array, not no output — the mapper depends on always
 receiving a valid findings array.

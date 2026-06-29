@@ -24,7 +24,8 @@ class Context:
 
     def run(self, script: str) -> None:
         self.check_default_exit()  # the previous command must have succeeded
-        self.last = subprocess.run(["bash", "-c", script], cwd=self.workdir, env=self.env,
+        self.last = subprocess.run(["bash", "-c", "set -o pipefail; " + script],
+                                   cwd=self.workdir, env=self.env,
                                    input=self.stdin, capture_output=True, text=True)
         self.stdin = None
         self.exit_checked = False

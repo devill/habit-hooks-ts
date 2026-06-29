@@ -12,7 +12,7 @@ from jinja2 import Template
 
 from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
 from .config import Config, load_config
-from .resolve import resolve_first, resolve_guide
+from .resolve import package_root, resolve_first, resolve_guide
 
 CLEAN_GUIDE = "clean.md"
 
@@ -97,14 +97,6 @@ def run(findings: list[dict], project_dir: Path, package_dir: Path) -> int:
         if r.stderr:
             sys.stderr.write(r.stderr)
     return 1 if any(r.blocks for r in rendered) else 0
-
-
-def package_root() -> Path:
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        if (parent / "plugins").is_dir():
-            return parent
-    raise SystemExit("could not locate the package plugins directory")
 
 
 def read_findings() -> list[dict]:

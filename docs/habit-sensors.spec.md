@@ -20,7 +20,7 @@ habit-sensors() { ../../habit-sensors "$@"; }
 
 ## Sensors combine
 
-### Sibling sensors concatenate in listed order 🟡
+### Sibling sensors concatenate in listed order
 
 The runner runs each sensor in a plugin and concatenates their findings in the
 order the plugin's `sensors` list names them.
@@ -64,7 +64,7 @@ habit-sensors --all | jq -c '[.[].smell]'
 ["warning-comment","oversized-file"]
 ```
 
-### A plugin stamps its declared language; the name need not match 🟡
+### A plugin stamps its declared language; the name need not match
 
 A plugin *declares* the language it speaks in its `config.toml`, and the runner
 stamps that onto the plugin's findings — even when the plugin's name is the tool
@@ -102,7 +102,7 @@ habit-sensors --all | jq -c '[.[].language]'
 
 ## Transformers reshape
 
-### A transformer rewrites what it handles and passes the rest through 🟡
+### A transformer rewrites what it handles and passes the rest through
 
 A transformer receives the whole findings array on stdin and returns a new one.
 Here it tags every `warning-comment` finding and leaves the `oversized-file`
@@ -153,7 +153,7 @@ habit-sensors --all | jq -c 'map({smell, details})'
 [{"smell":"warning-comment","details":{"tagged":true}},{"smell":"oversized-file","details":{}}]
 ```
 
-### The transformer chain runs left to right 🟡
+### The transformer chain runs left to right
 
 When a node lists several transformers, the runner pipes the findings through
 them in listed order, so each sees the previous one's output.
@@ -200,7 +200,7 @@ habit-sensors --all | jq -c '.[0].details.steps'
 
 ## Plugins compose
 
-### Active plugins concatenate; dropping one drops its findings 🟡
+### Active plugins concatenate; dropping one drops its findings
 
 The root `plugins` list decides which plugins run, in order. Here `python` is
 listed and `generic` is not, so only `python`'s sensors run and `generic`'s
@@ -253,7 +253,7 @@ habit-sensors --all | jq -c '[.[] | [.smell, .language]]'
 
 ## Failure is not false-clean
 
-### A broken sensor fails the run; the rest still report 🟡
+### A broken sensor fails the run; the rest still report
 
 A spawn failure or a non-zero exit from a sensor's tool yields zero findings for
 that sensor, a stderr notice naming it, and exit 1. The sibling sensors still
@@ -317,7 +317,7 @@ comes from the `[scope]` config.
 A git-mode flag run outside a git repository errors; the config-derived modes
 fall back to scanning every file instead.
 
-### --file scopes `${files}` to one file 🟡
+### --file scopes `${files}` to one file
 
 `--file` narrows `${files}` to the one named path, so the sensor only sees
 `src/a.txt` even though `src/b.txt` also exists.
