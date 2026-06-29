@@ -117,11 +117,12 @@ src/report.ts:8
 Bundle related arguments into an object.
 ```
 
-### Multiple smells each render their own guide
+### Multiple smells each render their own guide 🟡
 
-Every smell's guide is rendered and joined with a blank line, in the order the
-smells arrive. The exit code is the most severe (here `too-many-parameters` is
-`enforced`).
+Every finding is framed by a banner — `── <smell> (<n> issue[s]) ──` — so the
+findings read as distinct blocks instead of one wall of prose. The banner is
+always present, one finding or many, for a consistent shape. The exit code is the
+most severe (here `too-many-parameters` is `enforced`).
 
 📄.habit-hooks/generic/guides/warning-comment.md
 ```markdown
@@ -146,6 +147,15 @@ Resolve or remove these markers before merging.
           "actual": 4,
           "signature": "bill(customer, items, discount, tax)"
         }
+      },
+      {
+        "key": "src/report.ts",
+        "details": {
+          "file": "src/report.ts",
+          "line": 8,
+          "actual": 5,
+          "signature": "render(rows, columns, theme, locale, page)"
+        }
       }
     ]
   },
@@ -168,12 +178,18 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (2 issues) ──
+
 The following function definitions have more than 3 parameters:
 
 src/billing.ts:2
     bill(customer, items, discount, tax) has 4 parameters
+src/report.ts:8
+    render(rows, columns, theme, locale, page) has 5 parameters
 
 Bundle related arguments into an object.
+
+── warning-comment (1 issue) ──
 
 src/api.ts:14 TODO handle retry
 
