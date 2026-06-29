@@ -1,40 +1,71 @@
-"""Resolve a guide file across the override chain.
+"""Resolve plugin files across the override chain.
 
-Each plugin is tried project-override (``.habit-hooks/<plugin>/``) before package
-default (``<package>/plugins/<plugin>/``); plugins are walked in the configured
-order, so an earlier plugin's guide wins over a later one's.
+A plugin's files are looked up project-override
+(``.habit-hooks/<plugin>/``) before package default (the plugin's installed
+package data). Plugins are installed packages, discovered at runtime through the
+``habit_hooks.plugins`` entry-point group; the configured ``plugins`` list
+selects and orders them. Plugins are walked in the configured order, so an
+earlier plugin's guide wins over a later one's.
+
+A plugin that a project configures but neither overrides under ``.habit-hooks/``
+nor installs as a package raises a clear error naming it and its install command.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cache
+from importlib.metadata import entry_points
+from importlib.resources import files
 from pathlib import Path
 
+PLUGIN_ENTRY_POINT_GROUP = "habit_hooks.plugins"
 
-def package_root() -> Path:
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        if (parent / "plugins").is_dir():
-            return parent
-    raise SystemExit("could not locate the package plugins directory")
+
+@cache
+def installed_plugin_dirs() -> dict[str, Path]:
+    """Map each installed plugin's name to its package data directory.
+
+    Discovered through the ``habit_hooks.plugins`` entry-point group: each entry
+    point's name is the plugin name and its value the import package whose
+    bundled files (``config.toml``, ``sensors/``, ``guides/``, …) are the
+    plugin's defaults.
+    """
+    dirs: dict[str, Path] = {}
+    for entry_point in entry_points(group=PLUGIN_ENTRY_POINT_GROUP):
+        dirs[entry_point.name] = Path(str(files(entry_point.value)))
+    return dirs
 
 
 @dataclass(frozen=True)
 class Resolver:
     """The override chain layout: where plugin files are looked up.
 
-    Holds the project (override) and package (default) roots and offers the
-    lookups that walk them — project override before package default.
+    Holds the project (override) root and the installed plugins' package-data
+    roots, and offers the lookups that walk them — project override before
+    package default.
     """
 
     project_dir: Path
-    package_dir: Path
+    package_dirs: dict[str, Path]
+
+    @classmethod
+    def discover(cls, project_dir: Path) -> Resolver:
+        return cls(project_dir, installed_plugin_dirs())
 
     def plugin_dirs(self, plugin: str) -> list[Path]:
-        return [
-            self.project_dir / ".habit-hooks" / plugin,
-            self.package_dir / "plugins" / plugin,
-        ]
+        override = self.project_dir / ".habit-hooks" / plugin
+        package = self.package_dirs.get(plugin)
+        return [override] if package is None else [override, package]
+
+    def require_plugin(self, plugin: str) -> None:
+        """Fail clearly if a configured plugin is neither overridden nor installed."""
+        if self.in_plugin(plugin, "config.toml") is not None:
+            return
+        raise SystemExit(
+            f"habit-sensors: plugin {plugin!r} is not installed — "
+            f"install it with `pip install habit-hooks-{plugin}`"
+        )
 
     def in_plugin(self, plugin: str, relative: str) -> Path | None:
         """First existing ``<plugin>/<relative>``, project override before package."""

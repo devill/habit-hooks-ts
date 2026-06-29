@@ -1,0 +1,17 @@
+[project]
+name = "habit-hooks-php"
+version = "0.0.0"
+description = "The PHP Habit Hooks plugin"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.entry-points."habit_hooks.plugins"]
+php = "habit_hooks_php"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/habit_hooks_php"]
+artifacts = ["src/habit_hooks_php/sensors/phpmd.phar"]

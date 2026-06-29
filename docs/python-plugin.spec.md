@@ -21,7 +21,7 @@ transform in its command groups the flat output into one finding per smell,
 stamping `source: "ruff:<code>"` on each issue. The shipped `ruff.toml` carries
 `max-args = 3`, so a four-argument function trips `PLR0913`.
 
-📄ruff.toml @plugins/python/ruff.toml
+📄ruff.toml @plugins/python/src/habit_hooks_python/ruff.toml
 
 📄pyproject.toml
 ```toml

@@ -2,6 +2,15 @@ version = 1
 revision = 3
 requires-python = ">=3.11"
 
+[manifest]
+members = [
+    "habit-hooks",
+    "habit-hooks-generic",
+    "habit-hooks-php",
+    "habit-hooks-python",
+    "habit-hooks-typescript",
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
@@ -75,6 +84,10 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "deptry" },
+    { name = "habit-hooks-generic" },
+    { name = "habit-hooks-php" },
+    { name = "habit-hooks-python" },
+    { name = "habit-hooks-typescript" },
     { name = "markdown-it-py" },
     { name = "pytest" },
     { name = "ruff" },
@@ -90,10 +103,34 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "deptry", specifier = ">=0.25.1" },
+    { name = "habit-hooks-generic", editable = "plugins/generic" },
+    { name = "habit-hooks-php", editable = "plugins/php" },
+    { name = "habit-hooks-python", editable = "plugins/python" },
+    { name = "habit-hooks-typescript", editable = "plugins/typescript" },
     { name = "markdown-it-py", specifier = ">=3" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.15.20" },
 ]
+
+[[package]]
+name = "habit-hooks-generic"
+version = "0.0.0"
+source = { editable = "plugins/generic" }
+
+[[package]]
+name = "habit-hooks-php"
+version = "0.0.0"
+source = { editable = "plugins/php" }
+
+[[package]]
+name = "habit-hooks-python"
+version = "0.0.0"
+source = { editable = "plugins/python" }
+
+[[package]]
+name = "habit-hooks-typescript"
+version = "0.0.0"
+source = { editable = "plugins/typescript" }
 
 [[package]]
 name = "iniconfig"

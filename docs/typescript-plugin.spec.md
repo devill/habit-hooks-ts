@@ -28,7 +28,7 @@ canonical smell, and groups one finding per smell, stamping `source:
 "eslint:<rule>"` on each issue. The config caps `max-params` at 3, so a
 four-parameter function trips `max-params` → `too-many-parameters`.
 
-📄eslint.config.mjs @plugins/typescript/eslint.config.mjs
+📄eslint.config.mjs @plugins/typescript/src/habit_hooks_typescript/eslint.config.mjs
 
 📄src/billing.ts
 ```typescript
@@ -64,7 +64,7 @@ codes, and shapes each typed issue array into a finding — `exports` →
 `unused-export`, one issue per symbol keyed by the symbol name. `helper.ts`
 exports `neverUsed`, which nothing imports.
 
-📄knip.json @plugins/typescript/knip.json
+📄knip.json @plugins/typescript/src/habit_hooks_typescript/knip.json
 
 📄src/cli.ts
 ```typescript

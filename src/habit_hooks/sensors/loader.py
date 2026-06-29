@@ -29,6 +29,7 @@ class PluginLoader:
     config: Config
 
     def load_plugin(self, name: str) -> Plugin:
+        self.resolver.require_plugin(name)
         path = self.resolver.in_plugin(name, "config.toml")
         spec = _read_toml(path) if path else {}
         sensors = [

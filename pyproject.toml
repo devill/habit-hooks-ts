@@ -18,12 +18,25 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/habit_hooks"]
 
+[tool.uv.workspace]
+members = ["plugins/*"]
+
+[tool.uv.sources]
+habit-hooks-generic = { workspace = true }
+habit-hooks-python = { workspace = true }
+habit-hooks-typescript = { workspace = true }
+habit-hooks-php = { workspace = true }
+
 [dependency-groups]
 dev = [
     "pytest>=8",
     "markdown-it-py>=3",
     "ruff>=0.15.20",
     "deptry>=0.25.1",
+    "habit-hooks-generic",
+    "habit-hooks-python",
+    "habit-hooks-typescript",
+    "habit-hooks-php",
 ]
 
 [tool.pytest.ini_options]

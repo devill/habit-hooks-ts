@@ -12,7 +12,7 @@ from jinja2 import Template
 
 from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
 from .config import Config, load_config
-from .resolve import Resolver, package_root
+from .resolve import Resolver
 
 CLEAN_GUIDE = "clean.md"
 
@@ -80,9 +80,9 @@ def render_clean(config: Config, resolver: Resolver) -> Rendered:
     return Rendered(text=guide.read_text(), blocks=False)
 
 
-def run(findings: list[dict], project_dir: Path, package_dir: Path) -> int:
+def run(findings: list[dict], project_dir: Path) -> int:
     config = load_config(project_dir)
-    resolver = Resolver(project_dir, package_dir)
+    resolver = Resolver.discover(project_dir)
     if not findings:
         clean = render_clean(config, resolver)
         sys.stdout.write(clean.text)
@@ -103,7 +103,7 @@ def read_findings() -> list[dict]:
 
 
 def main() -> int:
-    return run(read_findings(), Path.cwd(), package_root())
+    return run(read_findings(), Path.cwd())
 
 
 if __name__ == "__main__":

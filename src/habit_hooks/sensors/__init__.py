@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from ..config import load_config
-from ..resolve import Resolver, package_root
+from ..resolve import Resolver
 from ..scope import parse_args, resolve_scope
 from .execution import Execution
 from .loader import PluginLoader
@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     project_dir = Path.cwd()
     config = load_config(project_dir, args.config)
     scope = resolve_scope(args, config, project_dir)
-    loader = PluginLoader(Resolver(project_dir, package_root()), config)
+    loader = PluginLoader(Resolver.discover(project_dir), config)
     run = run_sensors(loader, Execution(project_dir, scope))
     sys.stdout.write(json.dumps(run.findings) + "\n")
     for notice in run.notices:

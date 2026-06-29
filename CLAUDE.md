@@ -2,6 +2,30 @@
 
 ## Architecture
 
+### Plugins are installed packages discovered via entry points (human-requested by Ivett)
+
+The core finds plugins through the `habit_hooks.plugins` entry-point group, NOT
+by walking a sibling `plugins/` directory. Each plugin is a separately
+installable dist `habit-hooks-<name>` whose import package `habit_hooks_<name>`
+ships its `config.toml`/`sensors/`/`guides/`/helper scripts/phar as package data
+(importlib.resources-accessible). `resolve.installed_plugin_dirs()` maps plugin
+name -> package-data dir via `importlib.metadata.entry_points` +
+`importlib.resources.files`. The override chain is
+`.habit-hooks/<plugin>/<file>` (project) -> `<plugin package data>/<file>`
+(default). A configured plugin that is neither overridden under `.habit-hooks/`
+nor installed raises a clear error naming `pip install habit-hooks-<name>`
+(`Resolver.require_plugin`) — that is the bug-1 root-cause guard.
+
+The repo is a uv workspace (`[tool.uv.workspace] members = ["plugins/*"]`); the
+four in-repo plugins live under `plugins/<name>/src/habit_hooks_<name>/` and are
+installed editable by `uv sync` for dev. Keeping them in-repo is only a dev
+convenience — they do not need to live here. `tests/test_installed_wheel_smoke.py`
+builds + installs the core + generic wheels into a throwaway venv and asserts a
+real finding comes out; it is the gate that catches "installed runs can't locate
+plugins". `${dir}` in a sensor command resolves to the plugin's package-data dir,
+so helper-script paths (`${dir}/line-count.py`, `${dir}/../.jscpd.json`) keep
+working once the layout is preserved under the import package.
+
 ### Sensor `args` live in the sensor's own toml, not the plugin `config.toml` (agent decision)
 
 A sensor's default CLI args (e.g. line-count's `--max 200`) live as `args = [...]`
