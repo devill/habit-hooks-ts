@@ -610,3 +610,66 @@ habit-mapper
 ```text
 Could not auto-split; manual extraction needed.
 ```
+
+## Core baseline fallback (works without generic)
+
+The baseline `clean.md` and `uncoached.md` guides ship in the core, so the mapper
+coaches and never crashes even when no plugin supplies them, e.g. a project that
+runs the `python` plugin without `generic`.
+
+### A python-only config coaches an unguided smell via the core uncoached guide
+
+`swallowed-exception` has no guide in the `python` plugin and `generic` is not
+configured, so the mapper falls back to the core `uncoached.md` rather than
+crashing. The smell is `suggested`, so the run still passes.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+```
+
+⌨️
+```json
+[{"smell":"swallowed-exception","details":{},"issues":[{"key":"x.py:4","details":{"file":"x.py","line":4}}]}]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ✅
+```text
+── swallowed-exception (1 issue) ──
+
+General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
+- Ask yourself why the rule exists in the first place. What is it telling you about the code?
+- Find a fix that improves maintainability, cuts cruft — doing the same with fewer statements where that lowers cognitive load — and/or improves security, scalability, and resilience.
+- AVOID AT ALL COST: any fix that is designed to appease the reporting tool, but goes against the spirit of the warning.
+
+x.py:4
+```
+
+### A python-only clean run prints the core pass reminder
+
+With no findings and no `generic`, the run still renders the core `clean.md`.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+```
+
+⌨️
+```json
+[]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ✅
+```text
+✅ Habit Hooks: automated checks passed.
+
+Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
+```

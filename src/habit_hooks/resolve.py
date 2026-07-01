@@ -21,6 +21,11 @@ from pathlib import Path
 
 PLUGIN_ENTRY_POINT_GROUP = "habit_hooks.plugins"
 
+# The core ships baseline guides (clean.md, uncoached.md) as the final fallback, so
+# the mapper still coaches and never crashes when no configured plugin supplies them
+# (for example a project that drops the generic plugin).
+CORE_GUIDES = Path(__file__).parent / "guides"
+
 
 @cache
 def installed_plugin_dirs() -> dict[str, Path]:
@@ -80,11 +85,17 @@ class Resolver:
 
     def first(self, plugins: list[str], candidates: list[str]) -> Path | None:
         """First existing guide, walking plugins then override-before-package; within
-        one directory the candidate names are tried in order."""
+        one directory the candidate names are tried in order. Falls back last to the
+        core's built-in baseline guides, so the mapper still coaches (never crashes)
+        when no configured plugin supplies the guide."""
         for plugin in plugins:
             for base in self.plugin_dirs(plugin):
                 for name in candidates:
                     candidate = base / "guides" / name
                     if candidate.is_file():
                         return candidate
+        for name in candidates:
+            candidate = CORE_GUIDES / name
+            if candidate.is_file():
+                return candidate
         return None
