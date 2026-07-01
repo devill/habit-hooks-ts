@@ -98,6 +98,7 @@ only the plugin's sensors differ).
 | `ruff:F841`         | `unused-variable`     |
 | `ruff:F401`         | `unused-import`       |
 | `ruff:BLE001`       | `swallowed-exception` |
+| `ruff:invalid-syntax` | `parse-error`       |
 | `jscpd:duplication` | `duplicated-code`     |
 | `deptry:DEP002`     | `unused-dependency`   |
 | `line-count:max-module-lines` | `oversized-file` |
